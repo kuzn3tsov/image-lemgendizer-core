@@ -48,6 +48,7 @@ yarn add @lemgenda/image-lemgendizer-core
 # or
 pnpm add @lemgenda/image-lemgendizer-core
 ```
+
 ## Quick Start
 ### Basic Usage
 #### Simple Web Image Optimization
