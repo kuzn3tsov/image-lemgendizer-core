@@ -1,0 +1,21 @@
+
+# Test artifacts
+coverage/
+.vitest/
+test-results/
+*.log
+*.tmp
+.DS_Store
+
+# Fixtures (can be ignored as they're test data)
+tests/fixtures/
+!tests/fixtures/README.md
+
+# Test output
+__snapshots__/
+__tests__/__mocks__/
+
+# IDE
+.vscode/test
+.idea/test
+node_modules
