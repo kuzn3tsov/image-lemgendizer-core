@@ -1,7 +1,7 @@
 {
-    "name": "@lemgenda/image-lemgendizer-core",
-    "version": "2.1.0",
-    "description": "Batch image processing engine with intelligent resizing, cropping, optimization, template support, and favicon generation",
+    "name": "@lemgenda/image-lemgendizer",
+    "version": "2.2.0",
+    "description": "Client-side batch image processing library",
     "type": "module",
     "main": "./dist/index.cjs.js",
     "module": "./dist/index.es.js",
@@ -11,120 +11,29 @@
             "import": "./dist/index.es.js",
             "require": "./dist/index.cjs.js",
             "types": "./dist/types/index.d.ts"
-        },
-        "./templates": {
-            "import": "./dist/templates/index.es.js",
-            "require": "./dist/templates/index.cjs.js",
-            "types": "./dist/types/templates/index.d.ts"
-        },
-        "./processors": {
-            "import": "./dist/processors/index.es.js",
-            "require": "./dist/processors/index.cjs.js",
-            "types": "./dist/types/processors/index.d.ts"
-        },
-        "./utils": {
-            "import": "./dist/utils/index.es.js",
-            "require": "./dist/utils/index.cjs.js",
-            "types": "./dist/types/utils/index.d.ts"
         }
     },
     "files": [
         "dist",
-        "README.md",
-        "CHANGELOG.md",
-        "LICENSE"
+        "README.md"
     ],
-    "scripts": {
-        "clean": "rimraf dist coverage .vitest",
-        "build": "npm run clean && vite build",
-        "build:all": "npm run clean && npm run build:core && npm run build:templates && npm run build:processors && npm run build:utils",
-        "build:core": "rimraf dist && vite build --config vite.core.config.js",
-        "build:templates": "rimraf dist/templates && vite build --config vite.templates.config.js",
-        "build:processors": "rimraf dist/processors && vite build --config vite.processors.config.js",
-        "build:utils": "rimraf dist/utils && vite build --config vite.utils.config.js",
-        "dev": "npm run clean && vite build --watch --mode development",
-        "test": "vitest run",
-        "test:passing": "vitest run tests/utils/validation.test.js",
-        "test:crop": "vitest run tests/processors/LemGendaryCrop.test.js",
-        "test:watch": "vitest",
-        "test:ui": "vitest --ui",
-        "test:coverage": "vitest run --coverage",
-        "test:integration": "vitest run --run tests/integration/",
-        "test:unit": "vitest run --run tests/processors/ tests/utils/",
-        "test:processors": "vitest run --run tests/processors/",
-        "test:utils": "vitest run --run tests/utils/",
-        "test:debug": "vitest --inspect-brk --no-file-parallelism",
-        "prepublishOnly": "npm run build && npm run test && npm run lint",
-        "lint": "eslint src/ tests/ --ext .js",
-        "lint:fix": "eslint src/ tests/ --ext .js --fix",
-        "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\"",
-        "format:check": "prettier --check \"src/**/*.js\" \"tests/**/*.js\""
-    },
     "keywords": [
-        "image-processing",
-        "batch",
-        "resize",
-        "crop",
-        "optimize",
-        "favicon",
-        "icon",
-        "templates",
-        "social-media",
-        "webp",
-        "svg",
-        "ico",
-        "compression",
-        "lemgendary",
-        "image-optimization",
-        "batch-processing",
-        "automation",
-        "web-optimization"
+        "image",
+        "processing",
+        "browser",
+        "client-side"
     ],
-    "author": "LemGenda <info@lemgenda.hr>",
+    "author": "LemGenda",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/kuzn3tsov/image-lemgendizer-core.git",
-        "directory": "core"
-    },
-    "bugs": {
-        "url": "https://github.com/kuzn3tsov/image-lemgendizer-core/issues"
-    },
-    "homepage": "https://github.com/kuzn3tsov/image-lemgendizer-core#readme",
-    "engines": {
-        "node": ">=18.0.0",
-        "npm": ">=9.0.0"
+        "url": "git+https://github.com/lemgenda/image-lemgendizer-core.git"
     },
     "devDependencies": {
-        "@typescript-eslint/parser": "^6.15.0",
-        "@vitest/coverage-v8": "^1.6.0",
-        "eslint": "^8.57.1",
-        "eslint-config-prettier": "^9.1.2",
-        "eslint-plugin-import": "^2.32.0",
-        "eslint-plugin-prettier": "^5.5.4",
-        "eslint-plugin-vitest": "^0.3.26",
-        "jsdom": "^23.0.1",
-        "prettier": "^3.7.4",
-        "rimraf": "^6.1.2",
-        "vite": "^5.0.12",
-        "vite-plugin-dts": "^3.7.3",
-        "vitest": "^1.6.0"
-    },
-    "dependencies": {
-        "jszip": "^3.10.1",
-        "mime-types": "^2.1.35"
+        "vite": "^5.4.21",
+        "vite-plugin-dts": "^3.9.1"
     },
     "peerDependencies": {
-        "sharp": "^0.33.3"
-    },
-    "peerDependenciesMeta": {
-        "sharp": {
-            "optional": true
-        }
-    },
-    "sideEffects": false,
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org/"
+        "jszip": "^3.10.0"
     }
 }

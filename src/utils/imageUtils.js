@@ -56,6 +56,40 @@ export async function getImageDimensions(file) {
 }
 
 /**
+ * Get MIME type from file extension
+ * @param {string} filename - Filename or extension
+ * @returns {string} MIME type
+ */
+export function getMimeTypeFromExtension(filename) {
+    const extension = filename.toLowerCase().split('.').pop()
+
+    const mimeTypes = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp',
+        'gif': 'image/gif',
+        'svg': 'image/svg+xml',
+        'bmp': 'image/bmp',
+        'ico': 'image/x-icon',
+        'tiff': 'image/tiff',
+        'tif': 'image/tiff',
+        'avif': 'image/avif',
+        'pdf': 'application/pdf',
+        'txt': 'text/plain',
+        'csv': 'text/csv',
+        'json': 'application/json',
+        'xml': 'application/xml',
+        'zip': 'application/zip',
+        'rar': 'application/vnd.rar',
+        '7z': 'application/x-7z-compressed',
+        '': 'application/octet-stream'
+    }
+
+    return mimeTypes[extension] || 'application/octet-stream'
+}
+
+/**
  * Get SVG dimensions
  * @private
  */
@@ -512,17 +546,39 @@ export function validateImageFile(file) {
 
 /**
  * Create image thumbnail
- * @param {File} file - Image file
+ * @param {File|LemGendImage} imageOrFile - Image file or LemGendImage instance
  * @param {number} maxSize - Maximum thumbnail dimension
  * @returns {Promise<string>} Thumbnail as Data URL
  */
-export async function createThumbnail(file, maxSize = 200) {
+export async function createThumbnail(imageOrFile, maxSize = 200) {
+    let file;
+
+    // Handle both File and LemGendImage
+    if (imageOrFile instanceof File) {
+        file = imageOrFile;
+    } else if (imageOrFile && imageOrFile.file instanceof File) {
+        // Assuming it's a LemGendImage or similar object
+        file = imageOrFile.file;
+    } else {
+        throw new Error('Invalid input: must be File or object with file property');
+    }
+
     return new Promise((resolve, reject) => {
         // Special handling for favicons
         if (file.type === 'image/x-icon' || file.type === 'image/vnd.microsoft.icon') {
             // Use a default favicon icon as thumbnail
             resolve('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzM4ODJlZiIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iNjAiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjQwIiBmaWxsPSIjMzg4MmVmIi8+PC9zdmc+')
             return
+        }
+
+        // Special handling for SVG
+        if (file.type === 'image/svg+xml') {
+            // For SVG, return as-is
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+            return;
         }
 
         const img = new Image()
@@ -947,8 +1003,155 @@ export async function getOptimizationStats(file) {
     }
 }
 
+/**
+ * Get format priorities for intelligent optimization selection
+ * @param {Array<string>} browserSupport - Browser support requirements
+ * @returns {Object} Format priority data
+ */
+export function getFormatPriorities(browserSupport = ['modern', 'legacy']) {
+    const formats = {
+        'avif': {
+            quality: 0.9,
+            browserSupport: browserSupport.includes('modern') ? 0.9 : 0.7,
+            compression: 0.8,
+            supportsTransparency: true,
+            maxQuality: 63 // AVIF has different quality scale
+        },
+        'webp': {
+            quality: 0.8,
+            browserSupport: browserSupport.includes('legacy') ? 0.9 : 0.98,
+            compression: 0.7,
+            supportsTransparency: true,
+            maxQuality: 100
+        },
+        'jpg': {
+            quality: 0.7,
+            browserSupport: 1.0,
+            compression: 0.6,
+            supportsTransparency: false,
+            maxQuality: 100
+        },
+        'png': {
+            quality: 0.9,
+            browserSupport: 1.0,
+            compression: 0.5,
+            supportsTransparency: true,
+            maxQuality: 100
+        },
+        'ico': {
+            quality: 1.0,
+            browserSupport: 1.0,
+            compression: 0.5,
+            supportsTransparency: true,
+            maxQuality: 100
+        }
+    }
+
+    return formats
+}
+
+/**
+ * Check AI capabilities for smart cropping
+ * @returns {Promise<Object>} AI capability report
+ */
+export async function checkAICapabilities() {
+    const capabilities = {
+        faceDetection: false,
+        objectDetection: false,
+        saliencyDetection: false,
+        entropyDetection: false,
+        canvasAvailable: false,
+        workerAvailable: typeof Worker !== 'undefined',
+        tensorFlowAvailable: typeof tf !== 'undefined',
+        faceDetectorAvailable: typeof FaceDetector !== 'undefined'
+    }
+
+    try {
+        // Check canvas API
+        const canvas = document.createElement('canvas')
+        capabilities.canvasAvailable = !!(canvas.getContext && canvas.getContext('2d'))
+
+        // Check Face Detection API
+        if (typeof FaceDetector === 'function') {
+            try {
+                const faceDetector = new FaceDetector()
+                capabilities.faceDetection = true
+            } catch (e) {
+                console.warn('FaceDetector API available but failed to initialize:', e.message)
+            }
+        }
+
+        // Check TensorFlow.js
+        if (typeof tf !== 'undefined') {
+            capabilities.tensorFlowAvailable = true
+            capabilities.objectDetection = true
+            capabilities.saliencyDetection = true
+            capabilities.entropyDetection = true
+        }
+
+        // Check for offscreen canvas for workers
+        if (typeof OffscreenCanvas !== 'undefined') {
+            capabilities.offscreenCanvas = true
+        }
+
+    } catch (error) {
+        console.warn('Error checking AI capabilities:', error.message)
+    }
+
+    // Generate capability summary
+    capabilities.summary = generateAISummary(capabilities)
+    capabilities.hasAnyAI = capabilities.faceDetection || capabilities.objectDetection ||
+        capabilities.saliencyDetection || capabilities.entropyDetection
+
+    return capabilities
+}
+
+/**
+ * Generate AI capability summary
+ * @private
+ */
+function generateAISummary(capabilities) {
+    const availableFeatures = []
+    const unavailableFeatures = []
+
+    if (capabilities.faceDetection) availableFeatures.push('Face Detection')
+    else unavailableFeatures.push('Face Detection (requires FaceDetector API)')
+
+    if (capabilities.objectDetection) availableFeatures.push('Object Detection')
+    else unavailableFeatures.push('Object Detection (requires TensorFlow.js)')
+
+    if (capabilities.saliencyDetection) availableFeatures.push('Saliency Detection')
+    else unavailableFeatures.push('Saliency Detection (requires TensorFlow.js)')
+
+    if (capabilities.entropyDetection) availableFeatures.push('Entropy Analysis')
+    else unavailableFeatures.push('Entropy Analysis (requires TensorFlow.js)')
+
+    return {
+        available: availableFeatures,
+        unavailable: unavailableFeatures,
+        hasAdvancedAI: capabilities.tensorFlowAvailable,
+        canUseWorkers: capabilities.workerAvailable && capabilities.offscreenCanvas,
+        recommendedMode: capabilities.faceDetection ? 'face' :
+            capabilities.objectDetection ? 'object' :
+                capabilities.saliencyDetection ? 'saliency' : 'center'
+    }
+}
+
+/**
+ * Check if object is a LemGendImage instance
+ * @param {any} obj - Object to check
+ * @returns {boolean} True if LemGendImage instance
+ */
+export function isLemGendImage(obj) {
+    return obj &&
+        typeof obj === 'object' &&
+        obj.constructor &&
+        obj.constructor.name === 'LemGendImage';
+}
+
 export default {
     getImageDimensions,
+    getMimeTypeFromExtension,
     hasTransparency,
     fileToDataURL,
     dataURLtoFile,
@@ -967,5 +1170,8 @@ export default {
     generateOptimizationComparison,
     needsFormatConversion,
     getRecommendedFormat,
-    getOptimizationStats
+    getOptimizationStats,
+    getFormatPriorities,
+    checkAICapabilities,
+    isLemGendImage
 }

@@ -1,10 +1,59 @@
 # LemGendary Image Processor
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://img.shields.io/npm/v/image-lemgendizer.svg)](https://www.npmjs.com/package/@lemgenda/image-lemgendizer)
-[![Downloads](https://img.shields.io/npm/dm/image-lemgendizer.svg)](https://www.npmjs.com/package/@lemgenda/image-lemgendizer)
+[![npm version](https://img.shields.io/npm/v/@lemgenda/image-lemgendizer.svg)](https://www.npmjs.com/package/@lemgenda/image-lemgendizer)
+[![Downloads](https://img.shields.io/npm/dm/@lemgenda/image-lemgendizer.svg)](https://www.npmjs.com/package/@lemgenda/image-lemgendizer)
 
 A powerful, client-side batch image processing library with intelligent resizing, cropping, optimization, and template support. Built for modern web applications with zero external dependencies for core operations.
+
+## Project Structure
+```
+core/
+├── src/
+│   ├── processors/              # Processing modules
+│   │   ├── index.js
+│   │   ├── LemGendaryResize.js
+│   │   ├── LemGendaryCrop.js
+│   │   ├── LemGendaryOptimize.js
+│   │   └── LemGendaryRename.js
+│   ├── templates/              # Template system
+│   │   ├── index.js
+│   │   ├── favicon.js
+│   │   ├── social.js
+│   │   ├── web.js
+│   │   └── logo.js
+│   ├── tasks/                  # Task pipeline
+│   │   └── LemGendTask.js
+│   ├── utils/                  # Utilities
+│   │   ├── index.js
+│   │   ├── zipUtils.js
+│   │   ├── imageUtils.js
+│   │   ├── stringUtils.js
+│   │   ├── processingUtils.js
+│   │   └── validationUtils.js
+│   ├── LemGendImage.js          # Core image class
+│   └── index.js
+├── tests/                   # Test folder inside core
+│   ├── processors/
+│   │   ├── LemGendaryResize.test.js
+│   │   ├── LemGendaryCrop.test.js
+│   │   ├── LemGendaryOptimize.test.js
+│   │   └── LemGendaryRename.test.js
+│   ├── utils/
+│   │   ├── zipUtils.test.js
+│   │   ├── imageUtils.test.js
+│   │   └── validation.test.js
+│   ├── mocks/
+│   │   ├── fileMock.js
+│   │   ├── imageMock.js
+│   │   └── canvasMock.js
+│   ├── setup.js
+│   └── helpers.js               # Main entry point
+├── package.json
+├── vite.config.js
+├── vitest.config.js
+└── README.md
+```
 
 ## Features
 
@@ -39,21 +88,45 @@ A powerful, client-side batch image processing library with intelligent resizing
 - **Output**: WebP, JPEG, PNG, AVIF (browser-dependent)
 - **Vector support**: SVG processing with raster conversion
 
+## Performance
+
+The library is optimized for performance:
+- **Web Workers**: Heavy operations run off the main thread
+- **Lazy Loading**: Processors load only when needed
+- **Memory Efficient**: Automatic cleanup of object URLs
+- **Batch Optimization**: Parallel processing for large batches
+
+## Security
+
+- **No Server Uploads**: All processing happens in the browser
+- **No External APIs**: No data leaves the user's device
+- **Input Validation**: All files are validated before processing
+- **XSS Protection**: Sanitized filename handling
+
+Report security issues to: security@lemgenda.com
+
 ## Installation
 
 ```
-npm install @lemgenda/image-lemgendizer-core
+npm install @lemgenda/image-lemgendizer
 # or
-yarn add @lemgenda/image-lemgendizer-core
+yarn add @lemgenda/image-lemgendizer
 # or
-pnpm add @lemgenda/image-lemgendizer-core
+pnpm add @lemgenda/image-lemgendizer
 ```
+## Migration from v1.x
+
+Version 2.0 includes breaking changes:
+- Processor APIs are now promise-based
+- Template system completely redesigned
+- Improved error handling and validation
+- See [MIGRATION.md](MIGRATION.md) for details
 
 ## Quick Start
 ### Basic Usage
 #### Simple Web Image Optimization
 ```
-import { LemGendTask, lemGendaryProcessBatch } from '@lemgenda/image-lemgendizer-core'
+import { LemGendTask, lemGendaryProcessBatch } from '@lemgenda/image-lemgendizer'
 
 // Create a task for web optimization
 const task = new LemGendTask('Web Images')
@@ -83,7 +156,7 @@ results.forEach(result => {
 ```
 #### Batch Processing with ZIP Download
 ```
-import { lemGendaryProcessBatch, lemGendBuildZip } from '@lemgenda/image-lemgendizer-core'
+import { lemGendaryProcessBatch, lemGendBuildZip } from '@lemgenda/image-lemgendizer'
 
 // Create a comprehensive processing pipeline
 const task = new LemGendTask('Social Media Package')
@@ -129,7 +202,7 @@ import {
   getTemplatesByPlatform,
   getRecommendedTemplates,
   processWithTemplate
-} from '@lemgenda/image-lemgendizer-core'
+} from '@lemgenda/image-lemgendizer'
 
 // Get all Instagram templates
 const instagramTemplates = getTemplatesByPlatform('instagram')
@@ -158,7 +231,7 @@ if (result.success) {
 ```
 #### Social Media Profile Pictures
 ```
-import { LemGendTemplates, getTemplateById } from '@lemgenda/image-lemgendizer-core'
+import { LemGendTemplates, getTemplateById } from '@lemgenda/image-lemgendizer'
 
 // Create task for social media profile pictures
 const task = new LemGendTask('Profile Pictures')
@@ -191,7 +264,7 @@ const faceCropTask = new LemGendTask('Portrait Cropping')
 ```
 #### Favicon Generation
 ```
-import { processFaviconSet } from '@lemgenda/image-lemgendizer-core'
+import { processFaviconSet } from '@lemgenda/image-lemgendizer'
 
 // Generate complete favicon package
 const faviconResults = await processFaviconSet(logoFile, {
@@ -209,7 +282,7 @@ const faviconBlob = await createOptimizedZip(faviconResults, {
 ```
 #### Flexible Dimension Templates
 ```
-import { getFlexibleTemplates, processFlexibleTemplate } from '@lemgenda/image-lemgendizer-core'
+import { getFlexibleTemplates, processFlexibleTemplate } from '@lemgenda/image-lemgendizer'
 
 // Get templates with flexible dimensions
 const flexibleTemplates = getFlexibleTemplates()
@@ -223,7 +296,7 @@ const flexibleResult = await processFlexibleTemplate(image, flexibleTemplates[0]
 ### UI Integration Examples
 #### Drag & Drop File Upload
 ```
-import { validateImage, batchProcess } from '@lemgenda/image-lemgendizer-core'
+import { validateImage, batchProcess } from '@lemgenda/image-lemgendizer'
 
 // Setup drag & drop area
 const dropArea = document.getElementById('drop-area')
@@ -260,7 +333,7 @@ dropArea.addEventListener('drop', async (e) => {
 ```
 #### Progress Bar Implementation
 ```
-import { lemGendaryProcessBatch } from '@lemgenda/image-lemgendizer-core'
+import { lemGendaryProcessBatch } from '@lemgenda/image-lemgendizer'
 
 // Create progress UI
 const progressBar = document.getElementById('progress-bar')
@@ -293,7 +366,7 @@ async function processWithProgress(files, task) {
 ```
 #### Preview Before Processing
 ```
-import { LemGendImage, getImageDimensions, createThumbnail } from '@lemgenda/image-lemgendizer-core'
+import { LemGendImage, getImageDimensions, createThumbnail } from '@lemgenda/image-lemgendizer'
 
 // Preview uploaded images
 async function previewFiles(files) {
@@ -426,7 +499,7 @@ import {
   calculateAspectRatioFit,
   formatFileSize,
   fileToDataURL
-} from '@lemgenda/image-lemgendizer-core'
+} from '@lemgenda/image-lemgendizer'
 
 // Check image properties
 const hasAlpha = await hasTransparency(imageFile)
@@ -453,7 +526,7 @@ import {
   createSimpleZip,
   extractZip,
   getZipInfo
-} from '@lemgenda/image-lemgendizer-core'
+} from '@lemgenda/image-lemgendizer'
 
 // Create simple ZIP
 const simpleZip = await createSimpleZip(files, 'images.zip')
@@ -465,6 +538,23 @@ const extracted = await extractZip(zipFile)
 const zipInfo = await getZipInfo(zipFile)
 console.log('ZIP contains:', zipInfo.files.length, 'files')
 ```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"Canvas operations are blocked"**
+   - Solution: Ensure images are served with proper CORS headers
+
+2. **"AVIF format not supported"**
+   - Solution: Use `format: 'auto'` or check browser compatibility
+
+3. **"File too large"**
+   - Solution: Increase `maxFileSize` option or pre-process large files
+
+4. **"Memory issues with batch processing"**
+   - Solution: Use `parallel: false` or reduce `maxParallel` value
+
 ### Best Practices
 
 1. Always validate tasks before processing
@@ -620,6 +710,15 @@ console.log('ZIP contains:', zipInfo.files.length, 'files')
 | Large         | 1000×1000 to 2000×2000 | Social media posts, web images    |
 | Extra Large   | 2000×2000+           | Print, high-resolution assets       |
 
+## Browser Compatibility
+
+| Browser | Version | Features Supported |
+|---------|---------|-------------------|
+| Chrome  | 58+     | ✅ All features including WebP, AVIF |
+| Firefox | 65+     | ✅ All features including WebP |
+| Safari  | 14+     | ✅ Most features (limited AVIF support) |
+| Edge    | 79+     | ✅ All Chromium-based features |
+
 ## Build & Development
 ### Building from Source
 ```
@@ -638,55 +737,6 @@ npm test
 
 # Development mode
 npm run dev
-```
-## Project Structure
-```
-core/
-├── src/
-│   ├── processors/              # Processing modules
-│   │   ├── index.js
-│   │   ├── LemGendaryResize.js
-│   │   ├── LemGendaryCrop.js
-│   │   ├── LemGendaryOptimize.js
-│   │   └── LemGendaryRename.js
-│   ├── templates/              # Template system
-│   │   ├── index.js
-│   │   ├── favicon.js
-│   │   ├── social.js
-│   │   ├── web.js
-│   │   └── logo.js
-│   ├── tasks/                  # Task pipeline
-│   │   └── LemGendTask.js
-│   ├── utils/                  # Utilities
-│   │   ├── index.js
-│   │   ├── zipUtils.js
-│   │   ├── imageUtils.js
-│   │   └── validation.js
-│   ├── LemGendImage.js          # Core image class
-│   └── index.js
-├── tests/                   # Test folder inside core
-│   ├── processors/
-│   │   ├── LemGendaryResize.test.js
-│   │   ├── LemGendaryCrop.test.js
-│   │   ├── LemGendaryOptimize.test.js
-│   │   └── LemGendaryRename.test.js
-│   ├── utils/
-│   │   ├── zipUtils.test.js
-│   │   ├── imageUtils.test.js
-│   │   └── validation.test.js
-│   ├── mocks/
-│   │   ├── fileMock.js
-│   │   ├── imageMock.js
-│   │   └── canvasMock.js
-│   ├── setup.js
-│   └── helpers.js               # Main entry point
-├── package.json
-├── vite.config.js
-├── vite.core.config.js
-├── vite.templates.config.js
-├── vite.utils.config.js
-├── vite.processors.config.js
-└── README.md
 ```
 
 ## License
@@ -717,10 +767,27 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 -   Discussions
 
 # Features in Development
+[ ]  Localization (en, hr)
+[ ]  Watermark
+[ ]  Advanced color correction
+[ ]  Filters (B&W, Greyscale, Sephia...)
+[ ]  AI-powered Image Enhancement
+[ ]  AI-powered Image Tracer
+[ ]  AI-powered Background remove
+[ ]  AI-powered Background replace
+[ ]  AI-powered Background blur
+[ ]  AI-powered Object eraser
+[ ]  AI-powered Effects (Shadow, Duotone, Blur, Vignette, Auto Focus, Face Retouch)
+[ ]  Plugin system for custom processors
 
-[]  AI-powered image enhancement
-[]  Advanced color correction
-[]  Watermark addition
-[]  Background removal
-[]  Batch editing presets
-[]  Plugin system for custom processors
+## Roadmap
+
+### v3.0 (Q3 2026)
+- [ ] WebAssembly integration for faster processing
+- [ ] Service Worker support for offline processing
+- [ ] Advanced image analysis and auto-tagging
+
+### v2.3 (Next release)
+- [ ] Localization support (en, hr)
+- [ ] Watermark processor
+- [ ] Basic color correction tools

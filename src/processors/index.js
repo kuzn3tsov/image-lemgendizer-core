@@ -1,21 +1,17 @@
 /**
- * Processors exports
+ * Processors index - Export all processor classes
+ * @module processors
  */
 
-export { LemGendaryResize } from './LemGendaryResize.js'
-export { LemGendaryCrop } from './LemGendaryCrop.js'
-export { LemGendaryOptimize } from './LemGendaryOptimize.js'
-export { LemGendaryRename } from './LemGendaryRename.js'
+export { default as LemGendaryResize } from './LemGendaryResize.js';
+export { default as LemGendaryCrop } from './LemGendaryCrop.js';
+export { default as LemGendaryOptimize } from './LemGendaryOptimize.js';
+export { default as LemGendaryRename } from './LemGendaryRename.js';
 
-// Re-export as namespaced
-import { LemGendaryResize } from './LemGendaryResize.js'
-import { LemGendaryCrop } from './LemGendaryCrop.js'
-import { LemGendaryOptimize } from './LemGendaryOptimize.js'
-import { LemGendaryRename } from './LemGendaryRename.js'
-
-export const processors = {
+// Export default object for convenience
+export default {
     LemGendaryResize,
     LemGendaryCrop,
     LemGendaryOptimize,
     LemGendaryRename
-}
+};

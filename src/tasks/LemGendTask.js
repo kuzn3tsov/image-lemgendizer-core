@@ -4,8 +4,15 @@
  * @description Orchestrates multiple image processing operations in sequence
  */
 
-// Import validation functions
-import { validateOptimizationOptions, ValidationWarnings } from '../utils/validation.js'
+// Import centralized validation functions
+import {
+    validateTask,
+    validateOptimizationOptions,
+    ValidationWarnings,
+    validateFaviconOptions,
+    validateTaskSteps,
+    validateTaskLogic
+} from '../utils/validationUtils.js'
 
 export class LemGendTask {
     /**
@@ -27,7 +34,7 @@ export class LemGendTask {
             processorVersions: {
                 resize: '1.2.1',
                 crop: '2.0.0',
-                optimize: '2.0.0', // Updated version
+                optimize: '2.0.0',
                 rename: '1.0.0',
                 template: '1.3.0',
                 favicon: '2.0.0'
@@ -46,7 +53,7 @@ export class LemGendTask {
 
     /**
      * Add a processing step
-     * @param {string} processor - Processor name ('resize', 'crop', 'optimize', 'rename', 'template', 'favicon')
+     * @param {string} processor - Processor name
      * @param {Object} options - Processor options
      * @returns {LemGendTask} This task instance for chaining
      */
@@ -151,7 +158,6 @@ export class LemGendTask {
                     validatedOptions.format = 'png'
                 }
 
-                // Validate browser support
                 const validBrowserSupport = ['modern', 'legacy', 'all']
                 validatedOptions.browserSupport = validatedOptions.browserSupport.filter(support =>
                     validBrowserSupport.includes(support)
@@ -160,13 +166,11 @@ export class LemGendTask {
                     validatedOptions.browserSupport = ['modern', 'legacy']
                 }
 
-                // Validate compression mode
                 const validCompressionModes = ['adaptive', 'aggressive', 'balanced']
                 if (!validCompressionModes.includes(validatedOptions.compressionMode)) {
                     validatedOptions.compressionMode = 'adaptive'
                 }
 
-                // Adjust quality for specific formats
                 if (validatedOptions.format === 'avif') {
                     validatedOptions.quality = Math.min(63, validatedOptions.quality)
                 }
@@ -184,7 +188,6 @@ export class LemGendTask {
                 break
 
             case 'rename':
-                // Validate pattern has at least one placeholder
                 const placeholders = ['{name}', '{index}', '{timestamp}', '{width}', '{height}', '{dimensions}']
                 if (!placeholders.some(ph => validatedOptions.pattern.includes(ph))) {
                     validatedOptions.pattern = '{name}-{index}'
@@ -214,10 +217,6 @@ export class LemGendTask {
 
     /**
      * Add resize step
-     * @param {number} dimension - Target dimension
-     * @param {string} mode - 'auto', 'width', 'height', 'longest', or 'fit'
-     * @param {Object} additionalOptions - Additional options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addResize = (dimension, mode = 'longest', additionalOptions = {}) => {
         return this.addStep('resize', {
@@ -229,11 +228,6 @@ export class LemGendTask {
 
     /**
      * Add crop step
-     * @param {number} width - Crop width
-     * @param {number} height - Crop height
-     * @param {string} mode - Crop mode: 'smart', 'face', 'object', 'saliency', 'entropy', 'center', 'top', 'bottom', 'left', 'right'
-     * @param {Object} additionalOptions - Additional options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addCrop = (width, height, mode = 'smart', additionalOptions = {}) => {
         return this.addStep('crop', {
@@ -246,10 +240,6 @@ export class LemGendTask {
 
     /**
      * Add smart crop step with AI detection
-     * @param {number} width - Crop width
-     * @param {number} height - Crop height
-     * @param {Object} options - Smart crop options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addSmartCrop = (width, height, options = {}) => {
         return this.addStep('crop', {
@@ -265,10 +255,6 @@ export class LemGendTask {
 
     /**
      * Add optimization step with enhanced options
-     * @param {number} quality - Quality percentage
-     * @param {string} format - Output format ('auto', 'webp', 'jpg', 'png', 'avif', 'original')
-     * @param {Object} additionalOptions - Additional options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addOptimize = (quality = 85, format = 'auto', additionalOptions = {}) => {
         return this.addStep('optimize', {
@@ -284,8 +270,6 @@ export class LemGendTask {
 
     /**
      * Add optimization-first step for web delivery
-     * @param {Object} options - Optimization options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addWebOptimization = (options = {}) => {
         return this.addStep('optimize', {
@@ -302,9 +286,6 @@ export class LemGendTask {
 
     /**
      * Add rename step
-     * @param {string} pattern - Rename pattern (supports {name}, {width}, {height}, {dimensions}, {index}, {timestamp})
-     * @param {Object} additionalOptions - Additional options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addRename = (pattern, additionalOptions = {}) => {
         return this.addStep('rename', {
@@ -315,9 +296,6 @@ export class LemGendTask {
 
     /**
      * Add template step
-     * @param {string} templateId - Template ID
-     * @param {Object} additionalOptions - Additional options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addTemplate = (templateId, additionalOptions = {}) => {
         return this.addStep('template', {
@@ -328,10 +306,6 @@ export class LemGendTask {
 
     /**
      * Add favicon generation step
-     * @param {Array<number>} sizes - Array of sizes to generate
-     * @param {Array<string>} formats - Formats to generate ('png', 'ico', 'svg')
-     * @param {Object} additionalOptions - Additional options
-     * @returns {LemGendTask} This task instance for chaining
      */
     addFavicon = (sizes = [16, 32, 48, 64, 128, 180, 192, 256, 512], formats = ['png', 'ico'], additionalOptions = {}) => {
         return this.addStep('favicon', {
@@ -343,8 +317,6 @@ export class LemGendTask {
 
     /**
      * Remove a step by ID or index
-     * @param {string|number} identifier - Step ID or index
-     * @returns {boolean} True if step was removed
      */
     removeStep = (identifier) => {
         let index
@@ -372,8 +344,6 @@ export class LemGendTask {
 
     /**
      * Move step up in order
-     * @param {number} index - Step index
-     * @returns {boolean} True if step was moved
      */
     moveStepUp = (index) => {
         if (index <= 0 || index >= this.steps.length) {
@@ -392,8 +362,6 @@ export class LemGendTask {
 
     /**
      * Move step down in order
-     * @param {number} index - Step index
-     * @returns {boolean} True if step was moved
      */
     moveStepDown = (index) => {
         if (index < 0 || index >= this.steps.length - 1) {
@@ -412,9 +380,6 @@ export class LemGendTask {
 
     /**
      * Enable/disable a step
-     * @param {number} index - Step index
-     * @param {boolean} enabled - Enable state
-     * @returns {boolean} True if step was updated
      */
     setStepEnabled = (index, enabled = true) => {
         if (index >= 0 && index < this.steps.length) {
@@ -428,7 +393,6 @@ export class LemGendTask {
 
     /**
      * Get enabled steps only
-     * @returns {Array} Enabled steps
      */
     getEnabledSteps = () => {
         return this.steps.filter(step => step.enabled)
@@ -436,8 +400,6 @@ export class LemGendTask {
 
     /**
      * Get steps by processor type
-     * @param {string} processor - Processor type
-     * @returns {Array} Matching steps
      */
     getStepsByProcessor = (processor) => {
         return this.steps.filter(step => step.processor === processor)
@@ -445,8 +407,6 @@ export class LemGendTask {
 
     /**
      * Check if task has specific processor
-     * @param {string} processor - Processor type
-     * @returns {boolean} True if processor exists
      */
     hasProcessor = (processor) => {
         return this.getEnabledSteps().some(step => step.processor === processor)
@@ -454,7 +414,6 @@ export class LemGendTask {
 
     /**
      * Check if task has optimization step
-     * @returns {boolean} True if has optimization
      */
     hasOptimization = () => {
         return this.hasProcessor('optimize')
@@ -462,7 +421,6 @@ export class LemGendTask {
 
     /**
      * Get optimization step if exists
-     * @returns {Object|null} Optimization step
      */
     getOptimizationStep = () => {
         return this.getEnabledSteps().find(step => step.processor === 'optimize') || null
@@ -470,624 +428,19 @@ export class LemGendTask {
 
     /**
      * Validate task against an image
-     * @param {LemGendImage} lemGendImage - Image to validate against
-     * @returns {Promise<Object>} Validation result
      */
     validate = async (lemGendImage) => {
-        this.validationWarnings = []
-        this.validationErrors = []
+        const validation = await validateTask(this, lemGendImage)
 
-        if (!lemGendImage) {
-            const enabledSteps = this.getEnabledSteps()
+        // Update local state
+        this.validationWarnings = validation.warnings || []
+        this.validationErrors = validation.errors || []
 
-            if (enabledSteps.length === 0) {
-                this.validationWarnings.push({
-                    type: 'empty_task',
-                    message: 'Task has no enabled processing steps',
-                    severity: 'warning'
-                })
-            }
-
-            for (const step of enabledSteps) {
-                await this._validateStep(step, null)
-            }
-
-            this._validateTaskLogic()
-
-            return {
-                isValid: this.validationErrors.length === 0,
-                hasWarnings: this.validationWarnings.length > 0,
-                errors: [...this.validationErrors],
-                warnings: [...this.validationWarnings],
-                summary: this.getValidationSummary()
-            }
-        }
-
-        if (!lemGendImage.file || !(lemGendImage.file instanceof File)) {
-            this.validationErrors.push({
-                type: 'invalid_image',
-                message: 'Image missing valid file property',
-                severity: 'error'
-            })
-        }
-
-        const enabledSteps = this.getEnabledSteps()
-
-        if (enabledSteps.length === 0) {
-            this.validationWarnings.push({
-                type: 'empty_task',
-                message: 'Task has no enabled processing steps',
-                severity: 'warning'
-            })
-        }
-
-        for (const step of enabledSteps) {
-            await this._validateStep(step, lemGendImage)
-        }
-
-        this._validateTaskLogic()
-
-        if (lemGendImage.file && lemGendImage.file instanceof File) {
-            this._validateImageCompatibility(lemGendImage)
-        }
-
-        return {
-            isValid: this.validationErrors.length === 0,
-            hasWarnings: this.validationWarnings.length > 0,
-            errors: [...this.validationErrors],
-            warnings: [...this.validationWarnings],
-            summary: this.getValidationSummary()
-        }
-    }
-
-    /**
-     * Validate individual step
-     * @private
-     */
-    _validateStep = async (step, image) => {
-        if (!image) {
-            switch (step.processor) {
-                case 'optimize':
-                    this._validateOptimizeStep(step, null)
-                    break
-                case 'rename':
-                    this._validateRenameStep(step)
-                    break
-                case 'template':
-                    this._validateTemplateStep(step)
-                    break
-                case 'favicon':
-                    this._validateFaviconStep(step, null)
-                    break
-                case 'resize':
-                case 'crop':
-                    this._validateBasicStepOptions(step)
-                    break
-            }
-            return
-        }
-
-        switch (step.processor) {
-            case 'resize':
-                this._validateResizeStep(step, image)
-                break
-            case 'crop':
-                this._validateCropStep(step, image)
-                break
-            case 'optimize':
-                this._validateOptimizeStep(step, image)
-                break
-            case 'rename':
-                this._validateRenameStep(step)
-                break
-            case 'template':
-                this._validateTemplateStep(step)
-                break
-            case 'favicon':
-                this._validateFaviconStep(step, image)
-                break
-        }
-    }
-
-    /**
-     * Validate basic step options (without image)
-     * @private
-     */
-    _validateBasicStepOptions = (step) => {
-        switch (step.processor) {
-            case 'resize':
-                const { dimension } = step.options
-                if (dimension <= 0) {
-                    this.validationErrors.push({
-                        type: 'invalid_resize',
-                        step: step.order,
-                        message: `Resize dimension must be positive: ${dimension}`,
-                        severity: 'error'
-                    })
-                }
-                break
-
-            case 'crop':
-                const { width, height } = step.options
-                if (width <= 0 || height <= 0) {
-                    this.validationErrors.push({
-                        type: 'invalid_crop',
-                        step: step.order,
-                        message: `Crop dimensions must be positive: ${width}x${height}`,
-                        severity: 'error'
-                    })
-                }
-                break
-        }
-    }
-
-    /**
-     * Validate favicon step
-     * @private
-     */
-    _validateFaviconStep = (step, image) => {
-        const { sizes, formats } = step.options
-
-        if (!Array.isArray(sizes) || sizes.length === 0) {
-            this.validationErrors.push({
-                type: 'invalid_favicon_sizes',
-                step: step.order,
-                message: 'Favicon sizes must be a non-empty array',
-                severity: 'error'
-            })
-        }
-
-        sizes.forEach(size => {
-            if (size < 16) {
-                this.validationWarnings.push({
-                    type: 'small_favicon_size',
-                    step: step.order,
-                    message: `Favicon size ${size}px is below recommended minimum (16px)`,
-                    severity: 'warning'
-                })
-            }
-
-            if (size > 1024) {
-                this.validationWarnings.push({
-                    type: 'large_favicon_size',
-                    step: step.order,
-                    message: `Favicon size ${size}px is unusually large`,
-                    severity: 'info'
-                })
-            }
-        })
-
-        if (image) {
-            const minSize = Math.min(...sizes)
-            if (image.width < minSize || image.height < minSize) {
-                this.validationWarnings.push({
-                    type: 'small_source_favicon',
-                    step: step.order,
-                    message: `Source image (${image.width}x${image.height}) smaller than smallest favicon size (${minSize}px)`,
-                    severity: 'warning',
-                    suggestion: 'Consider using a larger source image or enable upscaling'
-                })
-            }
-
-            if (Math.abs(image.width / image.height - 1) > 0.1) {
-                this.validationWarnings.push({
-                    type: 'non_square_favicon',
-                    step: step.order,
-                    message: 'Source image is not square; favicons may be distorted',
-                    severity: 'warning',
-                    suggestion: 'Consider adding a crop step before favicon generation'
-                })
-            }
-        }
-
-        const validFormats = ['png', 'ico', 'svg']
-        formats.forEach(format => {
-            if (!validFormats.includes(format)) {
-                this.validationWarnings.push({
-                    type: 'unsupported_favicon_format',
-                    step: step.order,
-                    message: `Unsupported favicon format: ${format}`,
-                    severity: 'warning',
-                    suggestion: `Use one of: ${validFormats.join(', ')}`
-                })
-            }
-        })
-    }
-
-    /**
-     * Validate resize step
-     * @private
-     */
-    _validateResizeStep = (step, image) => {
-        if (!image) return
-
-        const { dimension, mode, upscale } = step.options
-
-        if (dimension <= 0) {
-            this.validationErrors.push({
-                type: 'invalid_resize',
-                step: step.order,
-                message: `Resize dimension must be positive: ${dimension}`,
-                severity: 'error'
-            })
-        }
-
-        if (dimension < 10) {
-            this.validationWarnings.push({
-                type: 'very_small_resize',
-                step: step.order,
-                message: `Resize dimension very small (${dimension}px)`,
-                severity: 'warning',
-                suggestion: 'Consider larger dimensions for usable output'
-            })
-        }
-
-        if (dimension > 10000) {
-            this.validationWarnings.push({
-                type: 'very_large_resize',
-                step: step.order,
-                message: `Resize dimension very large (${dimension}px)`,
-                severity: 'warning',
-                suggestion: 'Large dimensions may cause performance issues'
-            })
-        }
-
-        if (dimension > Math.max(image.width, image.height) && !upscale) {
-            this.validationWarnings.push({
-                type: 'upscale_needed',
-                step: step.order,
-                message: `Target size (${dimension}px) larger than source, upscaling disabled`,
-                severity: 'warning',
-                suggestion: 'Enable upscaling or use smaller target dimension'
-            })
-        }
-    }
-
-    /**
-     * Validate crop step
-     * @private
-     */
-    _validateCropStep = (step, image) => {
-        if (!image) return
-
-        const { width, height, mode, upscale, confidenceThreshold } = step.options
-
-        if (width <= 0 || height <= 0) {
-            this.validationErrors.push({
-                type: 'invalid_crop',
-                step: step.order,
-                message: `Crop dimensions must be positive: ${width}x${height}`,
-                severity: 'error'
-            })
-        }
-
-        if (['smart', 'face', 'object'].includes(mode)) {
-            this.validationWarnings.push({
-                type: 'ai_crop_mode',
-                step: step.order,
-                message: `Using AI-powered ${mode} cropping`,
-                severity: 'info',
-                suggestion: 'Ensure images have clear subjects for best results'
-            })
-
-            if (confidenceThreshold < 50) {
-                this.validationWarnings.push({
-                    type: 'low_confidence_threshold',
-                    step: step.order,
-                    message: `Low confidence threshold (${confidenceThreshold}%) may result in poor detection`,
-                    severity: 'warning',
-                    suggestion: 'Increase confidence threshold to 70% or higher for better accuracy'
-                })
-            }
-        }
-
-        if (width < 10 || height < 10) {
-            this.validationWarnings.push({
-                type: 'very_small_crop',
-                step: step.order,
-                message: `Crop dimensions very small (${width}x${height})`,
-                severity: 'warning',
-                suggestion: 'Consider larger crop area for usable output'
-            })
-        }
-
-        const aspect = width / height
-        if (aspect > 10 || aspect < 0.1) {
-            this.validationWarnings.push({
-                type: 'extreme_aspect',
-                step: step.order,
-                message: `Extreme aspect ratio: ${aspect.toFixed(2)}`,
-                severity: 'warning',
-                suggestion: 'Consider more balanced dimensions'
-            })
-        }
-
-        if ((width > image.width || height > image.height) && !upscale) {
-            this.validationWarnings.push({
-                type: 'crop_larger_than_source',
-                step: step.order,
-                message: `Crop area (${width}x${height}) larger than source (${image.width}x${image.height})`,
-                severity: 'warning',
-                suggestion: 'Enable upscaling or resize first'
-            })
-        }
-    }
-
-    /**
-    * Validate optimize step with enhanced validation
-    * @private
-    */
-    _validateOptimizeStep = (step, image) => {
-        // Use the imported validation function
-        const optimizationValidation = validateOptimizationOptions(step.options)
-
-        // Add validation errors
-        optimizationValidation.errors.forEach(error => {
-            this.validationErrors.push({
-                type: error.code,
-                step: step.order,
-                message: error.message,
-                severity: 'error',
-                suggestion: error.suggestion
-            })
-        })
-
-        // Add validation warnings
-        optimizationValidation.warnings.forEach(warning => {
-            this.validationWarnings.push({
-                type: warning.code,
-                step: step.order,
-                message: warning.message,
-                severity: 'warning',
-                suggestion: warning.suggestion
-            })
-        })
-
-        if (image) {
-            if ((step.options.format === 'jpg' || step.options.format === 'jpeg') && (image.transparency || step.options.preserveTransparency)) {
-                this.validationWarnings.push({
-                    type: ValidationWarnings.TRANSPARENCY_LOSS,
-                    step: step.order,
-                    message: 'JPEG format will remove transparency',
-                    severity: 'warning',
-                    suggestion: 'Use PNG or WebP to preserve transparency'
-                })
-            }
-
-            if (step.options.maxDisplayWidth && (image.width > step.options.maxDisplayWidth || image.height > step.options.maxDisplayWidth)) {
-                this.validationWarnings.push({
-                    type: 'resize_optimization',
-                    step: step.order,
-                    message: `Image will be resized to ${step.options.maxDisplayWidth}px maximum dimension`,
-                    severity: 'info'
-                })
-            }
-
-            if (step.options.format === 'avif') {
-                this.validationWarnings.push({
-                    type: ValidationWarnings.AVIF_BROWSER_SUPPORT,
-                    step: step.order,
-                    message: 'AVIF format provides excellent compression but limited browser support',
-                    severity: 'info',
-                    suggestion: 'Consider providing WebP fallback'
-                })
-            }
-
-            if (step.options.compressionMode === 'aggressive' && image.width * image.height > 4000000) {
-                this.validationWarnings.push({
-                    type: 'aggressive_compression_large',
-                    step: step.order,
-                    message: 'Aggressive compression on large images may take longer',
-                    severity: 'info'
-                })
-            }
-        }
-    }
-
-    /**
-     * Validate rename step
-     * @private
-     */
-    _validateRenameStep = (step) => {
-        const { pattern, preserveExtension } = step.options
-
-        if (!pattern || pattern.trim() === '') {
-            this.validationErrors.push({
-                type: 'empty_pattern',
-                step: step.order,
-                message: 'Rename pattern cannot be empty',
-                severity: 'error'
-            })
-        }
-
-        const invalidChars = /[<>:"/\\|?*\x00-\x1F]/
-        if (invalidChars.test(pattern)) {
-            this.validationErrors.push({
-                type: 'invalid_pattern_chars',
-                step: step.order,
-                message: 'Pattern contains invalid filename characters',
-                severity: 'error',
-                suggestion: 'Remove <>:"/\\|?* and control characters from pattern'
-            })
-        }
-
-        if (!pattern.includes('{name}') && !pattern.includes('{index}')) {
-            this.validationWarnings.push({
-                type: 'no_unique_placeholder',
-                step: step.order,
-                message: 'Pattern may create duplicate filenames',
-                severity: 'warning',
-                suggestion: 'Include {index} or {timestamp} for unique filenames'
-            })
-        }
-    }
-
-    /**
-     * Validate template step
-     * @private
-     */
-    _validateTemplateStep = (step) => {
-        const { templateId } = step.options
-
-        if (!templateId) {
-            this.validationErrors.push({
-                type: 'missing_template',
-                step: step.order,
-                message: 'Template ID is required',
-                severity: 'error'
-            })
-        }
-    }
-
-    /**
-     * Validate image compatibility
-     * @private
-     */
-    _validateImageCompatibility = (image) => {
-        const enabledSteps = this.getEnabledSteps()
-        const hasFaviconStep = enabledSteps.some(s => s.processor === 'favicon')
-        const hasSmartCrop = enabledSteps.some(s => s.processor === 'crop' &&
-            ['smart', 'face', 'object'].includes(s.options.mode))
-        const hasOptimization = enabledSteps.some(s => s.processor === 'optimize')
-
-        if (hasFaviconStep) {
-            if (image.type === 'image/svg+xml') {
-                this.validationWarnings.push({
-                    type: 'svg_favicon',
-                    message: 'SVG images may not convert well to favicon formats',
-                    severity: 'warning',
-                    suggestion: 'Consider using raster image for favicon generation'
-                })
-            }
-
-            if (image.type.includes('gif')) {
-                this.validationWarnings.push({
-                    type: 'animated_favicon',
-                    message: 'Animated GIFs will lose animation in favicon conversion',
-                    severity: 'info'
-                })
-            }
-        }
-
-        if (hasSmartCrop) {
-            if (image.width < 200 || image.height < 200) {
-                this.validationWarnings.push({
-                    type: 'small_image_smart_crop',
-                    message: 'Smart crop works best with images larger than 200x200 pixels',
-                    severity: 'warning',
-                    suggestion: 'Consider resizing before smart crop or use larger source images'
-                })
-            }
-        }
-
-        if (hasOptimization) {
-            const optimizationStep = enabledSteps.find(s => s.processor === 'optimize')
-            if (optimizationStep && optimizationStep.options.format === 'auto') {
-                this.validationWarnings.push({
-                    type: 'auto_format_selection',
-                    message: 'Format will be automatically selected based on image content and browser support',
-                    severity: 'info'
-                })
-            }
-        }
-
-        const minDimension = Math.min(image.width, image.height)
-        if (minDimension < 100) {
-            this.validationWarnings.push({
-                type: 'low_resolution',
-                message: `Source image resolution low (${image.width}x${image.height})`,
-                severity: 'warning',
-                suggestion: 'Consider using higher resolution source for better quality'
-            })
-        }
-    }
-
-    /**
-     * Validate task logic
-     * @private
-     */
-    _validateTaskLogic = () => {
-        const enabledSteps = this.getEnabledSteps()
-
-        const hasResize = enabledSteps.some(s => s.processor === 'resize')
-        const hasCrop = enabledSteps.some(s => s.processor === 'crop')
-        const hasOptimize = enabledSteps.some(s => s.processor === 'optimize')
-
-        if (hasCrop && !hasResize) {
-            this.validationWarnings.push({
-                type: 'crop_without_resize',
-                message: 'Crop without resize may result in unexpected output',
-                severity: 'info',
-                suggestion: 'Consider adding resize step before crop for better control'
-            })
-        }
-
-        const optimizeSteps = enabledSteps.filter(s => s.processor === 'optimize')
-        if (optimizeSteps.length > 1) {
-            this.validationWarnings.push({
-                type: 'multiple_optimize',
-                message: `Multiple optimization steps (${optimizeSteps.length})`,
-                severity: 'warning',
-                suggestion: 'Multiple optimizations may degrade quality unnecessarily'
-            })
-        }
-
-        const renameIndex = enabledSteps.findIndex(s => s.processor === 'rename')
-        if (renameIndex >= 0 && renameIndex < enabledSteps.length - 2) {
-            this.validationWarnings.push({
-                type: 'early_rename',
-                message: 'Rename step placed before other operations',
-                severity: 'info',
-                suggestion: 'Consider moving rename to end to reflect final output'
-            })
-        }
-
-        const faviconIndex = enabledSteps.findIndex(s => s.processor === 'favicon')
-        if (faviconIndex >= 0) {
-            const stepsBefore = enabledSteps.slice(0, faviconIndex)
-            const hasResizeBefore = stepsBefore.some(s => s.processor === 'resize')
-            const hasCropBefore = stepsBefore.some(s => s.processor === 'crop')
-
-            if (!hasResizeBefore && !hasCropBefore) {
-                this.validationWarnings.push({
-                    type: 'favicon_without_preparation',
-                    message: 'Favicon generation without prior resize/crop',
-                    severity: 'warning',
-                    suggestion: 'Add resize/crop step before favicon for optimal results'
-                })
-            }
-        }
-
-        const faviconSteps = enabledSteps.filter(s => s.processor === 'favicon')
-        faviconSteps.forEach(faviconStep => {
-            const optimizeAfter = enabledSteps
-                .filter(s => s.processor === 'optimize')
-                .some(optimizeStep => optimizeStep.order > faviconStep.order)
-
-            if (optimizeAfter) {
-                this.validationWarnings.push({
-                    type: 'optimize_after_favicon',
-                    message: 'Optimization after favicon generation may affect favicon quality',
-                    severity: 'warning',
-                    suggestion: 'Move optimization step before favicon generation'
-                })
-            }
-        })
-
-        // Validate optimization-first approach
-        if (hasOptimize && !hasResize && !hasCrop) {
-            this.validationWarnings.push({
-                type: 'optimization_only',
-                message: 'Task contains only optimization step',
-                severity: 'info',
-                suggestion: 'Consider adding resize/crop steps for complete image processing'
-            })
-        }
+        return validation
     }
 
     /**
      * Get validation summary
-     * @returns {Object} Validation summary
      */
     getValidationSummary = () => {
         const enabledSteps = this.getEnabledSteps()
@@ -1186,7 +539,6 @@ export class LemGendTask {
 
     /**
      * Get task description
-     * @returns {string} Human-readable description
      */
     getDescription = () => {
         const enabledSteps = this.getEnabledSteps()
@@ -1249,8 +601,6 @@ export class LemGendTask {
 
     /**
      * Get estimated processing time
-     * @param {number} imageCount - Number of images
-     * @returns {Object} Time estimates
      */
     getTimeEstimate = (imageCount = 1) => {
         const enabledSteps = this.getEnabledSteps()
@@ -1276,7 +626,7 @@ export class LemGendTask {
                 complexityFactor = sizeCount * formatCount
             } else if (step.processor === 'crop' &&
                 ['smart', 'face', 'object'].includes(step.options.mode)) {
-                complexityFactor = 3 // AI processing takes longer
+                complexityFactor = 3
             } else if (step.processor === 'optimize') {
                 if (step.options.compressionMode === 'aggressive') {
                     complexityFactor = 1.5
@@ -1315,7 +665,6 @@ export class LemGendTask {
 
     /**
      * Export task configuration
-     * @returns {Object} Task configuration
      */
     exportConfig = () => {
         return {
@@ -1343,8 +692,6 @@ export class LemGendTask {
 
     /**
      * Import task configuration
-     * @param {Object} config - Task configuration
-     * @returns {LemGendTask} New task instance
      */
     static importConfig(config) {
         const task = new LemGendTask(config.name, config.description)
@@ -1368,8 +715,6 @@ export class LemGendTask {
 
     /**
      * Create task from template
-     * @param {string} templateName - Template name
-     * @returns {LemGendTask} New task instance
      */
     static fromTemplate(templateName) {
         const templates = {
@@ -1523,7 +868,6 @@ export class LemGendTask {
 
     /**
      * Clone the task
-     * @returns {LemGendTask} Cloned task
      */
     clone = () => {
         return LemGendTask.importConfig(this.exportConfig())
@@ -1531,7 +875,6 @@ export class LemGendTask {
 
     /**
      * Create a simplified version of the task for UI display
-     * @returns {Object} Simplified task info
      */
     toSimpleObject = () => {
         const summary = this.getValidationSummary()
@@ -1557,8 +900,6 @@ export class LemGendTask {
 
     /**
      * Check if task is compatible with image type
-     * @param {string} mimeType - Image MIME type
-     * @returns {Object} Compatibility result
      */
     checkCompatibility = (mimeType) => {
         const enabledSteps = this.getEnabledSteps()

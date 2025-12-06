@@ -3,6 +3,18 @@
  * @class
  * @description Represents an image throughout the processing pipeline
  */
+
+// Import utility functions
+import {
+    getImageDimensions,
+    hasTransparency,
+    createThumbnail,
+    analyzeForOptimization,
+    formatFileSize,
+    getFileExtension,
+    fileToDataURL
+} from './utils/imageUtils.js';
+
 export class LemGendImage {
     /**
      * Create a new LemGendImage instance
@@ -20,7 +32,7 @@ export class LemGendImage {
         this.originalSize = file.size
         this.type = file.type
         this.mimeType = file.type
-        this.extension = file.name.split('.').pop().toLowerCase()
+        this.extension = getFileExtension(file)
 
         if (this.extension === 'ico' && !this.type.includes('image')) {
             this.type = 'image/x-icon'
@@ -81,70 +93,22 @@ export class LemGendImage {
                 aspectRatio: this.aspectRatio
             }
 
-            // Analyze image for optimization
-            await this._analyzeForOptimization()
+            // Analyze image for optimization using utility function
+            const analysis = await analyzeForOptimization(this.file)
+            this.optimizationScore = analysis.optimizationScore
+            this.optimizationRecommendations = analysis.recommendations
+            this.metadata.analysis = analysis
+            this.metadata.optimizationLevel = analysis.optimizationLevel
 
+            // Check transparency if applicable
             if (this.type === 'image/png' || this.type === 'image/webp' || this.type.includes('icon')) {
-                await this._checkTransparency()
+                this.transparency = await hasTransparency(this.file)
             }
 
             return this
         } catch (error) {
             throw new Error(`Failed to load image: ${error.message}`)
         }
-    }
-
-    /**
-     * Analyze image for optimization potential
-     * @private
-     */
-    _analyzeForOptimization = async () => {
-        const analysis = {
-            fileSize: this.originalSize,
-            dimensions: { width: this.width, height: this.height },
-            aspectRatio: this.aspectRatio,
-            orientation: this.orientation,
-            mimeType: this.type,
-            extension: this.extension,
-            optimizationScore: 0,
-            recommendations: []
-        }
-
-        // Calculate optimization score (0-100)
-        let score = 0
-
-        // Size-based scoring
-        if (this.originalSize > 5 * 1024 * 1024) {
-            score += 40
-            analysis.recommendations.push('File is very large - high optimization potential')
-        } else if (this.originalSize > 1 * 1024 * 1024) {
-            score += 20
-        } else if (this.originalSize > 100 * 1024) {
-            score += 10
-        }
-
-        // Dimension-based scoring
-        const megapixels = (this.width * this.height) / 1000000
-        if (megapixels > 16) {
-            score += 30
-            analysis.recommendations.push('Very high resolution - consider resizing')
-        } else if (megapixels > 4) {
-            score += 15
-        }
-
-        // Format-based scoring
-        const modernFormats = ['webp', 'avif', 'svg']
-        if (!modernFormats.includes(this.extension)) {
-            score += 20
-            analysis.recommendations.push(`Consider converting from ${this.extension} to modern format`)
-        }
-
-        this.optimizationScore = Math.min(100, score)
-        this.optimizationRecommendations = analysis.recommendations
-        this.metadata.analysis = analysis
-        this.metadata.optimizationLevel = score > 50 ? 'high' : score > 25 ? 'medium' : 'low'
-
-        return analysis
     }
 
     /**
@@ -283,45 +247,6 @@ export class LemGendImage {
     }
 
     /**
-     * Check raster image for transparency
-     * @private
-     */
-    _checkTransparency = async () => {
-        return new Promise((resolve) => {
-            const img = new Image()
-
-            img.onload = () => {
-                const canvas = document.createElement('canvas')
-                canvas.width = img.width
-                canvas.height = img.height
-                const ctx = canvas.getContext('2d')
-                ctx.drawImage(img, 0, 0)
-
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-                const data = imageData.data
-
-                for (let i = 3; i < data.length; i += 4) {
-                    if (data[i] < 255) {
-                        this.transparency = true
-                        resolve(true)
-                        return
-                    }
-                }
-
-                this.transparency = false
-                resolve(false)
-            }
-
-            img.onerror = () => {
-                this.transparency = false
-                resolve(false)
-            }
-
-            img.src = URL.createObjectURL(this.file)
-        })
-    }
-
-    /**
      * Update image dimensions
      * @param {number} width - New width in pixels
      * @param {number} height - New height in pixels
@@ -413,12 +338,7 @@ export class LemGendImage {
             throw new Error(`No output found for format: ${format}`)
         }
 
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result)
-            reader.onerror = reject
-            reader.readAsDataURL(output.file)
-        })
+        return fileToDataURL(output.file)
     }
 
     /**
@@ -426,12 +346,7 @@ export class LemGendImage {
      * @returns {Promise<string>} Data URL
      */
     toDataURL = async () => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(reader.result)
-            reader.onerror = reject
-            reader.readAsDataURL(this.file)
-        })
+        return fileToDataURL(this.file)
     }
 
     /**
@@ -721,6 +636,15 @@ export class LemGendImage {
     }
 
     /**
+     * Create thumbnail preview - uses utility function
+     * @param {number} maxSize - Maximum thumbnail dimension
+     * @returns {Promise<string>} Thumbnail as Data URL
+     */
+    createThumbnail = async (maxSize = 200) => {
+        return createThumbnail(this, maxSize)
+    }
+
+    /**
      * Clean up resources
      */
     destroy = () => {
@@ -756,64 +680,5 @@ export class LemGendImage {
         clone.optimizationRecommendations = [...this.optimizationRecommendations]
 
         return clone
-    }
-
-    /**
-     * Create thumbnail preview
-     * @param {number} maxSize - Maximum thumbnail dimension
-     * @returns {Promise<string>} Thumbnail as Data URL
-     */
-    createThumbnail = async (maxSize = 200) => {
-        return new Promise((resolve, reject) => {
-            if (this.type === 'image/svg+xml') {
-                // For SVG, return as-is
-                this.toDataURL().then(resolve).catch(reject)
-                return
-            }
-
-            if (this.type === 'image/x-icon' || this.type === 'image/vnd.microsoft.icon') {
-                // Use a default favicon icon as thumbnail
-                resolve('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzM4ODJlZiIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iNjAiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjQwIiBmaWxsPSIjMzg4MmVmIi8+PC9zdmc+')
-                return
-            }
-
-            const img = new Image()
-            const objectUrl = URL.createObjectURL(this.file)
-
-            img.onload = () => {
-                // Calculate thumbnail dimensions
-                let width, height
-                if (img.width > img.height) {
-                    width = maxSize
-                    height = Math.round((img.height / img.width) * maxSize)
-                } else {
-                    height = maxSize
-                    width = Math.round((img.width / img.height) * maxSize)
-                }
-
-                // Create canvas for thumbnail
-                const canvas = document.createElement('canvas')
-                canvas.width = width
-                canvas.height = height
-                const ctx = canvas.getContext('2d')
-
-                // Draw image
-                ctx.drawImage(img, 0, 0, width, height)
-
-                // Convert to Data URL
-                const thumbnail = canvas.toDataURL('image/jpeg', 0.7)
-
-                // Clean up
-                URL.revokeObjectURL(objectUrl)
-                resolve(thumbnail)
-            }
-
-            img.onerror = () => {
-                URL.revokeObjectURL(objectUrl)
-                reject(new Error('Failed to create thumbnail'))
-            }
-
-            img.src = objectUrl
-        })
     }
 }

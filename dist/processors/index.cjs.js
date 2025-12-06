@@ -1,2 +1,0 @@
-"use strict";Object.defineProperty(exports,Symbol.toStringTag,{value:"Module"});const e=require("../LemGendaryRename-wKbMw7Xe.cjs"),r={LemGendaryResize:e.LemGendaryResize,LemGendaryCrop:e.LemGendaryCrop,LemGendaryOptimize:e.LemGendaryOptimize,LemGendaryRename:e.LemGendaryRename};exports.LemGendaryCrop=e.LemGendaryCrop;exports.LemGendaryOptimize=e.LemGendaryOptimize;exports.LemGendaryRename=e.LemGendaryRename;exports.LemGendaryResize=e.LemGendaryResize;exports.processors=r;
-//# sourceMappingURL=index.cjs.js.map

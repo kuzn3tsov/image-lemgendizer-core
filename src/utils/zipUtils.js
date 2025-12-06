@@ -3,24 +3,16 @@
  * @module utils/zipUtils
  */
 
+// Import from centralized utils
+import { formatFileSize, getFileExtension, getMimeTypeFromExtension } from './imageUtils.js';
+import { sanitizeFilename } from './stringUtils.js';
+
 /**
  * Create a ZIP file with organized structure
- * @param {Array<LemGendImage>} processedImages - Array of processed LemGendImage objects
- * @param {Object} options - ZIP creation options
- * @param {boolean} options.includeOriginal - Include original images (default: true)
- * @param {boolean} options.includeOptimized - Include optimized versions (default: true)
- * @param {boolean} options.includeWebImages - Include web-optimized versions (default: true)
- * @param {boolean} options.includeLogoImages - Include logo versions (default: true)
- * @param {boolean} options.includeFaviconImages - Include favicon versions (default: true)
- * @param {boolean} options.includeSocialMedia - Include social media versions (default: true)
- * @param {boolean} options.createFolders - Create organized folder structure (default: true)
- * @param {boolean} options.includeInfoFile - Include INFO.txt with metadata (default: true)
- * @param {string} options.zipName - Custom ZIP filename (default: 'lemgendary-export')
- * @returns {Promise<Blob>} ZIP file as Blob
  */
 export async function createLemGendaryZip(processedImages = [], options = {}) {
-    // Set default options
     const defaultOptions = {
+        mode: 'custom',
         includeOriginal: true,
         includeOptimized: true,
         includeWebImages: true,
@@ -35,12 +27,15 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
 
     const mergedOptions = { ...defaultOptions, ...options }
 
-    // Dynamically load JSZip to avoid dependency issues
     let JSZip
     try {
-        JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        JSZip = (await import('jszip')).default
     } catch (error) {
-        throw new Error('JSZip library required. Include it via CDN or npm package.')
+        try {
+            JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        } catch (cdnError) {
+            throw new Error('JSZip library required. Include it via CDN or npm package.')
+        }
     }
 
     const zip = new JSZip()
@@ -48,68 +43,66 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
     const timestamp = now.toISOString().replace(/[:.]/g, '-').split('T')[0]
     const folderName = `${mergedOptions.zipName}-${timestamp}`
 
-    // Create main folder
     const mainFolder = mergedOptions.createFolders
         ? zip.folder(folderName)
         : zip
 
-    // Define all possible folders with their conditions
-    const folderConfigs = [
-        {
-            name: '00_Originals',
-            condition: mergedOptions.includeOriginal,
-            files: await getOriginals(processedImages)
-        },
-        {
-            name: '01_Optimized',
-            condition: mergedOptions.includeOptimized,
-            files: await getOptimizedFiles(processedImages, 'optimized')
-        },
-        {
-            name: '02_Web_Images',
-            condition: mergedOptions.includeWebImages,
-            files: await getCategorizedFiles(processedImages, 'web')
-        },
-        {
-            name: '03_Logo_Images',
-            condition: mergedOptions.includeLogoImages,
-            files: await getCategorizedFiles(processedImages, 'logo')
-        },
-        {
-            name: '04_Favicon_Images',
-            condition: mergedOptions.includeFaviconImages,
-            files: await getCategorizedFiles(processedImages, 'favicon')
-        },
-        {
-            name: '05_Social_Media',
-            condition: mergedOptions.includeSocialMedia,
-            files: await getCategorizedFiles(processedImages, 'social')
-        }
-    ]
+    const stats = {
+        totalImages: processedImages.length,
+        originals: 0,
+        optimized: 0,
+        web: 0,
+        logo: 0,
+        favicon: 0,
+        social: 0,
+        formats: {},
+        totalSize: 0
+    }
 
-    // Add files to folders, skipping empty ones if configured
-    for (const config of folderConfigs) {
-        if (config.condition && config.files.length > 0) {
-            const folder = mergedOptions.createFolders
-                ? mainFolder.folder(config.name)
-                : mainFolder
-
-            for (const fileData of config.files) {
+    const addFilesToFolder = async (folder, files, category = '') => {
+        for (const fileData of files) {
+            if (fileData.content) {
                 const fileName = sanitizeFilename(fileData.name)
                 folder.file(fileName, fileData.content)
+
+                if (category) {
+                    stats[category] = (stats[category] || 0) + 1
+                }
+
+                const ext = getFileExtension(fileData.content)
+                stats.formats[ext] = (stats.formats[ext] || 0) + 1
+
+                if (fileData.content.size) {
+                    stats.totalSize += fileData.content.size
+                }
             }
-        } else if (config.condition && config.files.length === 0 && mergedOptions.skipEmptyFolders) {
-            console.log(`Skipping empty folder: ${config.name}`)
         }
     }
 
-    // Add info file if requested
+    const filesByCategory = await categorizeFiles(processedImages, mergedOptions)
+    const folderStructure = getFolderStructure(mergedOptions.mode)
+
+    for (const [category, files] of Object.entries(filesByCategory)) {
+        if (files.length === 0 && mergedOptions.skipEmptyFolders) {
+            console.log(`Skipping empty folder: ${category}`)
+            continue
+        }
+
+        if (folderStructure[category]) {
+            const folderName = folderStructure[category]
+            const folder = mergedOptions.createFolders
+                ? mainFolder.folder(folderName)
+                : mainFolder
+
+            await addFilesToFolder(folder, files, getStatsCategory(category))
+        }
+    }
+
     if (mergedOptions.includeInfoFile) {
-        const infoContent = generateInfoFileContent(processedImages, mergedOptions)
+        const infoContent = generateInfoFileContent(processedImages, stats, mergedOptions)
         mainFolder.file('INFO.txt', infoContent)
     }
 
-    // Generate ZIP
     const zipBlob = await zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
@@ -124,307 +117,26 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
 }
 
 /**
- * Get original files from LemGendImages
- * @private
- */
-async function getOriginals(images) {
-    const files = []
-
-    for (const image of images) {
-        if (image.file && image.file instanceof File) {
-            files.push({
-                name: image.originalName || image.file.name,
-                content: image.file
-            })
-        }
-    }
-
-    return files
-}
-
-/**
- * Get optimized files from LemGendImages
- * @private
- */
-async function getOptimizedFiles(images, category) {
-    const files = []
-
-    for (const image of images) {
-        // Get outputs from the image
-        let outputs = []
-
-        if (typeof image.getAllOutputs === 'function') {
-            outputs = image.getAllOutputs()
-        } else if (image.outputs && typeof image.outputs.get === 'function') {
-            // Handle Map-based outputs
-            outputs = Array.from(image.outputs.values())
-        } else if (Array.isArray(image.outputs)) {
-            outputs = image.outputs
-        }
-
-        // Filter for optimized files (no template or custom category)
-        const optimizedOutputs = outputs.filter(output => {
-            return !output.template || output.template === 'custom' || output.category === category
-        })
-
-        for (const output of optimizedOutputs) {
-            if (output.file && output.file instanceof File) {
-                files.push({
-                    name: output.file.name || `optimized-${Date.now()}.${getFileExtension(output.file)}`,
-                    content: output.file
-                })
-            }
-        }
-    }
-
-    return files
-}
-
-/**
- * Get categorized files from LemGendImages
- * @private
- */
-async function getCategorizedFiles(images, category) {
-    const files = []
-
-    for (const image of images) {
-        // Get outputs from the image
-        let outputs = []
-
-        if (typeof image.getAllOutputs === 'function') {
-            outputs = image.getAllOutputs()
-        } else if (image.outputs && typeof image.outputs.get === 'function') {
-            // Handle Map-based outputs
-            outputs = Array.from(image.outputs.values())
-        } else if (Array.isArray(image.outputs)) {
-            outputs = image.outputs
-        }
-
-        // Filter by category
-        const categorizedOutputs = outputs.filter(output => {
-            const outputCategory = output.template?.category || output.category || ''
-            return outputCategory.toLowerCase() === category.toLowerCase()
-        })
-
-        for (const output of categorizedOutputs) {
-            if (output.file && output.file instanceof File) {
-                files.push({
-                    name: output.file.name || `${category}-${Date.now()}.${getFileExtension(output.file)}`,
-                    content: output.file
-                })
-            }
-        }
-    }
-
-    return files
-}
-
-/**
- * Generate info file content
- * @private
- */
-function generateInfoFileContent(images, options) {
-    const now = new Date()
-
-    // Collect statistics
-    const stats = {
-        totalImages: images.length,
-        originals: 0,
-        optimized: 0,
-        web: 0,
-        logo: 0,
-        favicon: 0,
-        social: 0,
-        formats: {},
-        totalSize: 0
-    }
-
-    // Calculate statistics
-    for (const image of images) {
-        if (image.file) {
-            stats.originals++
-            stats.totalSize += image.file.size || 0
-        }
-
-        // Get outputs
-        let outputs = []
-        if (typeof image.getAllOutputs === 'function') {
-            outputs = image.getAllOutputs()
-        } else if (image.outputs && Array.isArray(image.outputs)) {
-            outputs = image.outputs
-        }
-
-        for (const output of outputs) {
-            if (output.file) {
-                stats.totalSize += output.file.size || 0
-
-                // Count by category
-                const category = output.template?.category || output.category || 'optimized'
-                switch (category.toLowerCase()) {
-                    case 'web': stats.web++; break
-                    case 'logo': stats.logo++; break
-                    case 'favicon': stats.favicon++; break
-                    case 'social': stats.social++; break
-                    default: stats.optimized++
-                }
-
-                // Count by format
-                const format = getFileExtension(output.file)
-                stats.formats[format] = (stats.formats[format] || 0) + 1
-            }
-        }
-    }
-
-    // Generate info text
-    const infoText = `LEMGENDARY IMAGE EXPORT
-===========================
-
-Export Information
-------------------
-Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}
-Tool: LemGendary Image Processor
-Version: 2.0.0
-Export ID: ${Date.now().toString(36).toUpperCase()}
-
-Options Used
-------------
-${Object.entries(options)
-            .filter(([key]) => !['zipName'].includes(key))
-            .map(([key, value]) => `${key.padEnd(20)}: ${value}`)
-            .join('\n')}
-
-Statistics
-----------
-Total Images Processed: ${stats.totalImages}
-Total Files in Export: ${stats.originals + stats.optimized + stats.web + stats.logo + stats.favicon + stats.social}
-
-File Breakdown:
-  Original Images: ${stats.originals}
-  Optimized Images: ${stats.optimized}
-  Web Images: ${stats.web}
-  Logo Images: ${stats.logo}
-  Favicon Images: ${stats.favicon}
-  Social Media Images: ${stats.social}
-
-Format Distribution:
-${Object.entries(stats.formats)
-            .map(([format, count]) => `  ${format.toUpperCase().padEnd(6)}: ${count} files`)
-            .join('\n')}
-
-Total Size: ${formatBytes(stats.totalSize)}
-
-Image Details
--------------
-${images.map((img, index) => {
-                const outputs = typeof img.getAllOutputs === 'function' ? img.getAllOutputs() : []
-                return `[${index + 1}] ${img.originalName || 'Unnamed'}
-  Original: ${formatBytes(img.originalSize || 0)} | ${img.width || '?'}×${img.height || '?'}
-  Outputs: ${outputs.length} file(s)
-  ${outputs.map(out => `  - ${out.file?.name || 'Unnamed'} (${out.template?.category || 'custom'})`).join('\n  ')}`
-            }).join('\n\n')}
-
-Folder Structure
-----------------
-${options.createFolders ? `
-00_Originals/       - Original uploaded images (${stats.originals > 0 ? stats.originals + ' files' : 'Skipped - empty'})
-01_Optimized/       - Custom processed images (${stats.optimized > 0 ? stats.optimized + ' files' : 'Skipped - empty'})
-02_Web_Images/      - Web template outputs (${stats.web > 0 ? stats.web + ' files' : 'Skipped - empty'})
-03_Logo_Images/     - Logo template outputs (${stats.logo > 0 ? stats.logo + ' files' : 'Skipped - empty'})
-04_Favicon_Images/  - Favicon template outputs (${stats.favicon > 0 ? stats.favicon + ' files' : 'Skipped - empty'})
-05_Social_Media/    - Social media platform outputs (${stats.social > 0 ? stats.social + ' files' : 'Skipped - empty'})`
-            : 'All files in root folder'}
-
-Notes
------
-• All processing done client-side in browser
-• No images uploaded to external servers
-• Created with LemGendary Image Processor
-• https://github.com/lemgenda/image-lemgendizer`
-
-    return infoText
-}
-
-/**
- * Format bytes to human-readable string
- * @private
- */
-function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes'
-
-    const k = 1024
-    const dm = decimals < 0 ? 0 : decimals
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
-}
-
-/**
- * Get file extension from filename
- * @private
- */
-function getFileExtension(file) {
-    if (!file || !file.name) return 'unknown'
-
-    const parts = file.name.split('.')
-    if (parts.length > 1) {
-        return parts.pop().toLowerCase()
-    }
-
-    // Try to get from MIME type
-    const mimeMap = {
-        'image/jpeg': 'jpg',
-        'image/jpg': 'jpg',
-        'image/png': 'png',
-        'image/webp': 'webp',
-        'image/gif': 'gif',
-        'image/svg+xml': 'svg',
-        'image/bmp': 'bmp',
-        'image/tiff': 'tiff',
-        'image/x-icon': 'ico',
-        'image/avif': 'avif'
-    }
-
-    return mimeMap[file.type] || 'unknown'
-}
-
-/**
- * Sanitize filename for safe storage
- * @param {string} filename - Original filename
- * @returns {string} Sanitized filename
- */
-function sanitizeFilename(filename) {
-    if (!filename) return 'unnamed-file'
-
-    return filename
-        .replace(/[<>:"/\\|?*]/g, '-')
-        .replace(/\s+/g, '_')
-        .replace(/[^\w.\-]/g, '')
-        .substring(0, 255)
-        .trim()
-}
-
-/**
  * Create simple ZIP from file list
- * @param {Array<File>} files - Files to include in ZIP
- * @param {string} zipName - ZIP filename
- * @returns {Promise<Blob>} ZIP file as Blob
  */
 export async function createSimpleZip(files = [], zipName = 'files') {
-    // Dynamically load JSZip
     let JSZip
     try {
-        JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        JSZip = (await import('jszip')).default
     } catch (error) {
-        throw new Error('JSZip library required. Include it via CDN or npm package.')
+        try {
+            JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        } catch (cdnError) {
+            throw new Error('JSZip library required. Include it via CDN or npm package.')
+        }
     }
 
     const zip = new JSZip()
 
     for (const file of files) {
         if (file && file instanceof File) {
-            zip.file(sanitizeFilename(file.name), file)
+            const sanitizedName = sanitizeFilename(file.name)
+            zip.file(sanitizedName, file)
         }
     }
 
@@ -437,26 +149,26 @@ export async function createSimpleZip(files = [], zipName = 'files') {
 
 /**
  * Extract ZIP file
- * @param {Blob} zipBlob - ZIP file as Blob
- * @returns {Promise<Array>} Array of extracted files
  */
 export async function extractZip(zipBlob) {
     if (!(zipBlob instanceof Blob)) {
         throw new Error('Input must be a Blob object')
     }
 
-    // Dynamically load JSZip
     let JSZip
     try {
-        JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        JSZip = (await import('jszip')).default
     } catch (error) {
-        throw new Error('JSZip library required. Include it via CDN or npm package.')
+        try {
+            JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        } catch (cdnError) {
+            throw new Error('JSZip library required. Include it via CDN or npm package.')
+        }
     }
 
     const zip = await JSZip.loadAsync(zipBlob)
     const files = []
 
-    // Process all files in ZIP
     const filePromises = Object.keys(zip.files).map(async (filename) => {
         const zipEntry = zip.files[filename]
 
@@ -489,61 +201,22 @@ export async function extractZip(zipBlob) {
 }
 
 /**
- * Get MIME type from file extension
- * @private
- */
-function getMimeTypeFromExtension(filename) {
-    const extension = filename.toLowerCase().split('.').pop()
-
-    const mimeTypes = {
-        // Images
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'webp': 'image/webp',
-        'gif': 'image/gif',
-        'svg': 'image/svg+xml',
-        'bmp': 'image/bmp',
-        'ico': 'image/x-icon',
-        'tiff': 'image/tiff',
-        'tif': 'image/tiff',
-        'avif': 'image/avif',
-
-        // Documents
-        'pdf': 'application/pdf',
-        'txt': 'text/plain',
-        'csv': 'text/csv',
-        'json': 'application/json',
-        'xml': 'application/xml',
-
-        // Archives
-        'zip': 'application/zip',
-        'rar': 'application/vnd.rar',
-        '7z': 'application/x-7z-compressed',
-
-        // Default
-        '': 'application/octet-stream'
-    }
-
-    return mimeTypes[extension] || 'application/octet-stream'
-}
-
-/**
  * Get ZIP file info without extracting
- * @param {Blob} zipBlob - ZIP file as Blob
- * @returns {Promise<Object>} ZIP information
  */
 export async function getZipInfo(zipBlob) {
     if (!(zipBlob instanceof Blob)) {
         throw new Error('Input must be a Blob object')
     }
 
-    // Dynamically load JSZip
     let JSZip
     try {
-        JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        JSZip = (await import('jszip')).default
     } catch (error) {
-        throw new Error('JSZip library required. Include it via CDN or npm package.')
+        try {
+            JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        } catch (cdnError) {
+            throw new Error('JSZip library required. Include it via CDN or npm package.')
+        }
     }
 
     const zip = await JSZip.loadAsync(zipBlob)
@@ -593,33 +266,31 @@ export async function getZipInfo(zipBlob) {
 
 /**
  * Create ZIP with progress tracking
- * @param {Array} processedImages - Processed images
- * @param {Object} options - ZIP options
- * @param {Function} onProgress - Progress callback (0-1)
- * @returns {Promise<Blob>} ZIP file
  */
 export async function createZipWithProgress(processedImages, options = {}, onProgress = null) {
-    // Dynamically load JSZip
     let JSZip
     try {
-        JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        JSZip = (await import('jszip')).default
     } catch (error) {
-        throw new Error('JSZip library required. Include it via CDN or npm package.')
+        try {
+            JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js')).default
+        } catch (cdnError) {
+            throw new Error('JSZip library required. Include it via CDN or npm package.')
+        }
     }
 
     const zip = new JSZip()
     const folderName = options.zipName || `export-${Date.now()}`
     const mainFolder = options.createFolders ? zip.folder(folderName) : zip
 
-    // Calculate total files for progress
     const totalFiles = calculateTotalFiles(processedImages, options)
     let filesAdded = 0
 
-    // Add files to ZIP with progress updates
     if (options.includeOriginal) {
-        const originals = await getOriginals(processedImages)
+        const originals = getOriginals(processedImages)
         for (const fileData of originals) {
-            mainFolder.file(sanitizeFilename(fileData.name), fileData.content)
+            const sanitizedName = sanitizeFilename(fileData.name)
+            mainFolder.file(sanitizedName, fileData.content)
             filesAdded++
 
             if (onProgress) {
@@ -628,32 +299,6 @@ export async function createZipWithProgress(processedImages, options = {}, onPro
         }
     }
 
-    // Add other file categories similarly
-    const categories = [
-        { name: 'optimized', getter: getOptimizedFiles },
-        { name: 'web', getter: (images) => getCategorizedFiles(images, 'web') },
-        { name: 'logo', getter: (images) => getCategorizedFiles(images, 'logo') },
-        { name: 'favicon', getter: (images) => getCategorizedFiles(images, 'favicon') },
-        { name: 'social', getter: (images) => getCategorizedFiles(images, 'social') }
-    ]
-
-    for (const category of categories) {
-        if (options[`include${category.name.charAt(0).toUpperCase() + category.name.slice(1)}`]) {
-            const files = await category.getter(processedImages)
-            const folder = options.createFolders ? mainFolder.folder(getFolderName(category.name)) : mainFolder
-
-            for (const fileData of files) {
-                folder.file(sanitizeFilename(fileData.name), fileData.content)
-                filesAdded++
-
-                if (onProgress) {
-                    onProgress(filesAdded / totalFiles, `Adding ${category.name}: ${fileData.name}`)
-                }
-            }
-        }
-    }
-
-    // Generate ZIP with progress
     return zip.generateAsync({
         type: 'blob',
         compression: 'DEFLATE',
@@ -669,60 +314,94 @@ export async function createZipWithProgress(processedImages, options = {}, onPro
 }
 
 /**
- * Calculate total files for progress tracking
- * @private
+ * Create optimized ZIP with advanced optimization
  */
-function calculateTotalFiles(images, options) {
-    let count = 0
+export async function createOptimizedZip(images, options = {}) {
+    const {
+        optimization = {},
+        zipOptions = {},
+        includeReport = true
+    } = options
 
-    // Count originals
-    if (options.includeOriginal) {
-        count += images.filter(img => img.file).length
-    }
+    const { LemGendaryOptimize } = await import('../processors/LemGendaryOptimize.js')
+    const optimizer = new LemGendaryOptimize(optimization)
 
-    // Count optimized/categorized files
-    for (const image of images) {
-        let outputs = []
-        if (typeof image.getAllOutputs === 'function') {
-            outputs = image.getAllOutputs()
-        } else if (Array.isArray(image.outputs)) {
-            outputs = image.outputs
-        }
-
-        for (const output of outputs) {
-            const category = output.template?.category || output.category || 'optimized'
-            const optionName = `include${category.charAt(0).toUpperCase() + category.slice(1)}`
-
-            if (options[optionName] !== false) {
-                count++
+    const { LemGendImage } = await import('../LemGendImage.js')
+    const lemGendImages = await Promise.all(
+        images.map(async (img) => {
+            if (img instanceof LemGendImage) {
+                return img
+            } else {
+                const lemGendImg = new LemGendImage(img)
+                await lemGendImg.load()
+                return lemGendImg
             }
-        }
+        })
+    )
+
+    console.log(`Optimizing ${lemGendImages.length} images...`)
+    const optimizationResults = await optimizer.prepareForZip(lemGendImages)
+
+    const successful = optimizationResults.filter(r => r.success)
+    const failed = optimizationResults.filter(r => !r.success)
+
+    console.log(`Optimization complete: ${successful.length} successful, ${failed.length} failed`)
+
+    if (successful.length === 0) {
+        throw new Error('No images could be optimized')
     }
 
-    return Math.max(count, 1) // Ensure at least 1 for progress calculation
+    const optimizedImages = successful.map(result => {
+        const optimizedImage = new LemGendImage(result.optimized)
+        optimizedImage.originalName = result.original.originalName
+        return optimizedImage
+    })
+
+    if (includeReport) {
+        const report = optimizer.generateOptimizationReport(optimizationResults)
+        const reportFile = new File(
+            [JSON.stringify(report, null, 2)],
+            'optimization-report.json',
+            { type: 'application/json' }
+        )
+        const reportImage = new LemGendImage(reportFile)
+        reportImage.originalName = 'optimization-report.json'
+        optimizedImages.push(reportImage)
+    }
+
+    console.log('Creating ZIP from optimized images...')
+    const zipBlob = await createLemGendaryZip(optimizedImages, {
+        zipName: 'optimized-images.zip',
+        ...zipOptions
+    })
+
+    return zipBlob
 }
 
 /**
- * Get folder name for category
- * @private
+ * Create ZIP from processed images (legacy function)
  */
-function getFolderName(category) {
-    const folderMap = {
-        'optimized': '01_Optimized',
-        'web': '02_Web_Images',
-        'logo': '03_Logo_Images',
-        'favicon': '04_Favicon_Images',
-        'social': '05_Social_Media'
-    }
+export async function lemGendBuildZip(processedResults, options = {}) {
+    console.warn('lemGendBuildZip is deprecated. Use createBatchZip or createTemplateZip instead.')
 
-    return folderMap[category] || category
+    const images = processedResults
+        .filter(result => result.success && result.image)
+        .map(result => result.image)
+
+    const hasTemplates = images.some(img => {
+        const outputs = getImageOutputs(img)
+        return outputs.some(out => out.template)
+    })
+
+    if (hasTemplates) {
+        return createTemplateZip(processedResults, options)
+    } else {
+        return createBatchZip(processedResults, options)
+    }
 }
 
 /**
  * Create optimized ZIP structure for custom processing
- * @param {Array} processedResults - Results from processing
- * @param {Object} options - ZIP options
- * @returns {Promise<Blob>} ZIP file
  */
 export async function createCustomZip(processedResults, options = {}) {
     const images = processedResults
@@ -743,9 +422,6 @@ export async function createCustomZip(processedResults, options = {}) {
 
 /**
  * Create template-based ZIP structure
- * @param {Array} templateResults - Results from template processing
- * @param {Object} options - ZIP options
- * @returns {Promise<Blob>} ZIP file
  */
 export async function createTemplateZip(templateResults, options = {}) {
     const images = templateResults
@@ -760,12 +436,298 @@ export async function createTemplateZip(templateResults, options = {}) {
     return createLemGendaryZip(images, templateOptions)
 }
 
+/**
+ * Create ZIP from processed batch results
+ */
+export async function createBatchZip(processedResults, options = {}) {
+    const images = processedResults
+        .filter(result => result.success && result.image)
+        .map(result => result.image)
+
+    const zipOptions = {
+        mode: 'custom',
+        zipName: options.zipName || 'custom-processed',
+        ...options
+    }
+
+    return createLemGendaryZip(images, zipOptions)
+}
+
+// ===== PRIVATE HELPER FUNCTIONS =====
+
+/**
+ * Categorize files based on processing mode
+ */
+async function categorizeFiles(images, options) {
+    const categories = {
+        originals: [],
+        optimized: [],
+        web: [],
+        logo: [],
+        favicon: [],
+        social: []
+    }
+
+    for (const image of images) {
+        if (options.includeOriginal && image.file && image.file instanceof File) {
+            categories.originals.push({
+                name: image.originalName || image.file.name,
+                content: image.file
+            })
+        }
+
+        const outputs = getImageOutputs(image)
+
+        for (const output of outputs) {
+            if (!output.file || !(output.file instanceof File)) continue
+
+            const category = determineCategory(output, options.mode)
+
+            if (categories[category] && shouldIncludeCategory(category, options)) {
+                categories[category].push({
+                    name: output.file.name || `output-${Date.now()}.${getFileExtension(output.file)}`,
+                    content: output.file,
+                    metadata: output.metadata || {}
+                })
+            }
+        }
+    }
+
+    return categories
+}
+
+/**
+ * Get image outputs
+ */
+function getImageOutputs(image) {
+    if (typeof image.getAllOutputs === 'function') {
+        return image.getAllOutputs()
+    } else if (image.outputs && typeof image.outputs.get === 'function') {
+        return Array.from(image.outputs.values())
+    } else if (Array.isArray(image.outputs)) {
+        return image.outputs
+    }
+    return []
+}
+
+/**
+ * Determine category for output
+ */
+function determineCategory(output, mode) {
+    if (mode === 'custom') {
+        return 'optimized'
+    }
+
+    const templateCategory = output.template?.category?.toLowerCase() ||
+        output.category?.toLowerCase() ||
+        ''
+
+    switch (templateCategory) {
+        case 'web':
+        case 'favicon':
+            return templateCategory
+        case 'logo':
+            return 'logo'
+        case 'social':
+        case 'social media':
+            return 'social'
+        default:
+            return 'optimized'
+    }
+}
+
+/**
+ * Check if category should be included
+ */
+function shouldIncludeCategory(category, options) {
+    const categoryMap = {
+        originals: options.includeOriginal,
+        optimized: options.includeOptimized,
+        web: options.includeWebImages,
+        logo: options.includeLogoImages,
+        favicon: options.includeFaviconImages,
+        social: options.includeSocialMedia
+    }
+
+    return categoryMap[category] !== false
+}
+
+/**
+ * Get folder structure based on mode
+ */
+function getFolderStructure(mode) {
+    if (mode === 'custom') {
+        return {
+            originals: '01_OriginalImages',
+            optimized: '02_OptimizedImages'
+        }
+    } else {
+        return {
+            originals: '01_OriginalImages',
+            web: '02_WebImages',
+            logo: '03_LogoImages',
+            favicon: '04_FaviconImages',
+            social: '05_SocialImages',
+            optimized: '06_OptimizedImages'
+        }
+    }
+}
+
+/**
+ * Get statistics category name
+ */
+function getStatsCategory(folderCategory) {
+    const map = {
+        'originals': 'originals',
+        'optimized': 'optimized',
+        'web': 'web',
+        'logo': 'logo',
+        'favicon': 'favicon',
+        'social': 'social'
+    }
+    return map[folderCategory] || 'optimized'
+}
+
+/**
+ * Generate info file content
+ */
+function generateInfoFileContent(images, stats, options) {
+    const now = new Date()
+
+    let infoText = `LEMGENDARY IMAGE EXPORT
+===========================
+
+Export Information
+------------------
+Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}
+Mode: ${options.mode === 'custom' ? 'Custom Processing' : 'Template Processing'}
+Tool: LemGendary Image Processor
+Version: 2.2.0
+Export ID: ${Date.now().toString(36).toUpperCase()}
+
+Options Used
+------------
+${Object.entries(options)
+            .filter(([key]) => !['zipName'].includes(key))
+            .map(([key, value]) => `${key.padEnd(25)}: ${value}`)
+            .join('\n')}
+
+Statistics
+----------
+Total Images Processed: ${stats.totalImages}
+Total Files in Export: ${Object.values(stats).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0) - stats.totalImages}
+
+File Breakdown:`
+
+    const categories = ['originals', 'optimized', 'web', 'logo', 'favicon', 'social']
+    categories.forEach(category => {
+        if (stats[category] > 0) {
+            const folderName = getFolderStructure(options.mode)[category] || category
+            infoText += `\n  ${folderName.padEnd(25)}: ${stats[category]} files`
+        }
+    })
+
+    infoText += `
+
+Format Distribution:
+${Object.entries(stats.formats)
+            .map(([format, count]) => `  ${format.toUpperCase().padEnd(6)}: ${count} files`)
+            .join('\n')}
+
+Total Size: ${formatFileSize(stats.totalSize)}
+
+Image Details
+-------------
+${images.map((img, index) => {
+                const outputs = getImageOutputs(img)
+                return `[${index + 1}] ${img.originalName || 'Unnamed'}
+  Original: ${formatFileSize(img.originalSize || 0)} | ${img.width || '?'}×${img.height || '?'}
+  Outputs: ${outputs.length} file(s)
+  ${outputs.map(out => `  - ${out.file?.name || 'Unnamed'} (${out.template?.category || 'custom'})`).join('\n  ')}`
+            }).join('\n\n')}
+
+Folder Structure
+----------------
+${options.createFolders ?
+            Object.entries(getFolderStructure(options.mode))
+                .map(([category, folderName]) => {
+                    const count = stats[category] || 0
+                    return `${folderName}/ - ${count > 0 ? `${count} files` : 'Empty (skipped)'}`
+                })
+                .join('\n') :
+            'All files in root folder'}
+
+Notes
+-----
+• All processing done client-side in browser
+• No images uploaded to external servers
+• Empty folders are automatically skipped
+• Created with LemGendary Image Processor
+• https://github.com/lemgenda/image-lemgendizer`
+
+    return infoText
+}
+
+/**
+ * Calculate total files for progress tracking
+ */
+function calculateTotalFiles(images, options) {
+    let count = 0
+
+    if (options.includeOriginal) {
+        count += images.filter(img => img.file).length
+    }
+
+    for (const image of images) {
+        let outputs = []
+        if (typeof image.getAllOutputs === 'function') {
+            outputs = image.getAllOutputs()
+        } else if (Array.isArray(image.outputs)) {
+            outputs = image.outputs
+        }
+
+        for (const output of outputs) {
+            const category = output.template?.category || output.category || 'optimized'
+            const optionName = `include${category.charAt(0).toUpperCase() + category.slice(1)}`
+
+            if (options[optionName] !== false) {
+                count++
+            }
+        }
+    }
+
+    return Math.max(count, 1)
+}
+
+/**
+ * Get originals files from LemGendImages
+ */
+function getOriginals(images) {
+    const files = []
+
+    for (const image of images) {
+        if (image.file && image.file instanceof File) {
+            const sanitizedName = sanitizeFilename(image.originalName || image.file.name)
+            files.push({
+                name: sanitizedName,
+                content: image.file
+            })
+        }
+    }
+
+    return files
+}
+
+// Default export
 export default {
     createLemGendaryZip,
     createSimpleZip,
     extractZip,
     getZipInfo,
     createZipWithProgress,
+    createOptimizedZip,
+    lemGendBuildZip,
     createCustomZip,
-    createTemplateZip
+    createTemplateZip,
+    createBatchZip
 }

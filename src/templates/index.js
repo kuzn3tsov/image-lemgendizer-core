@@ -10,7 +10,7 @@ import faviconTemplates from './favicon.js'
 import logoTemplates from './logo.js'
 
 // Import validation utilities
-import { parseDimension, isVariableDimension } from '../utils/validation.js'
+import { parseDimension, isVariableDimension } from '../utils/validationUtils.js'
 
 /**
  * LemGendTemplates - Collection of all available templates
@@ -812,7 +812,9 @@ export function getTemplatesForImage(width, height, options = {}) {
     // Sort by score descending
     return scoredTemplates.sort((a, b) => b.matchScore - a.matchScore)
 }
+
 export { isVariableDimension, parseDimension }
+
 // Export default object for convenience
 export default {
     LemGendTemplates,
