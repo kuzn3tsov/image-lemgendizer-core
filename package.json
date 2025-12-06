@@ -1,6 +1,6 @@
 {
     "name": "@lemgenda/image-lemgendizer",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "description": "Client-side batch image processing library",
     "type": "module",
     "main": "./dist/index.cjs.js",
