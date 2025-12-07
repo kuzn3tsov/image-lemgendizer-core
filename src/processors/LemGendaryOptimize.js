@@ -2,6 +2,10 @@
  * LemGendaryOptimize - Intelligent image optimization processor
  * @class
  */
+
+// Import processing utils statically
+import { applyOptimization as applyOptimizationUtil } from '../utils/processingUtils.js';
+
 export class LemGendaryOptimize {
     /**
      * Create a new LemGendaryOptimize processor
@@ -73,15 +77,12 @@ export class LemGendaryOptimize {
     async applyOptimization(image) {
         const { selectedFormat } = await this.process(image);
 
-        // Import processing utils for actual optimization
-        const { applyOptimization } = await import('../utils/processingUtils.js');
-
         const dimensions = {
             width: image.width,
             height: image.height
         };
 
-        return applyOptimization(
+        return applyOptimizationUtil(
             image.file,
             dimensions,
             {

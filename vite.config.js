@@ -1,17 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
-import dts from 'vite-plugin-dts';
 
 export default defineConfig({
-    plugins: [
-        dts({
-            entryRoot: 'src',
-            outDir: 'dist/types',
-            rollupTypes: false, // CHANGE THIS TO false
-            exclude: ['**/*.test.js', '**/*.spec.js'],
-        }),
-    ],
-
     build: {
         lib: {
             entry: resolve(__dirname, 'src/index.js'),
@@ -26,12 +16,37 @@ export default defineConfig({
                 globals: {
                     jszip: 'JSZip',
                 },
+                preserveModules: false,
+                interop: 'auto',
             },
+            onwarn(warning, warn) {
+                // Suppress specific warnings
+                if (
+                    warning.code === 'MODULE_LEVEL_DIRECTIVE' ||
+                    warning.message.includes('dynamically imported') ||
+                    warning.message.includes('statically imported')
+                ) {
+                    return;
+                }
+                warn(warning);
+            }
         },
         outDir: 'dist',
         emptyOutDir: true,
         sourcemap: true,
         minify: false,
         target: 'es2020',
+        commonjsOptions: {
+            transformMixedEsModules: true,
+        },
+    },
+
+    resolve: {
+        alias: {
+            '@': resolve(__dirname, 'src'),
+            '@utils': resolve(__dirname, 'src/utils'),
+            '@processors': resolve(__dirname, 'src/processors'),
+            '@templates': resolve(__dirname, 'src/templates'),
+        },
     },
 });

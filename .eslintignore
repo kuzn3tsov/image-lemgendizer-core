@@ -1,6 +1,0 @@
-# core/.eslintignore
-node_modules/
-dist/
-coverage/
-*.config.js
-*.min.js

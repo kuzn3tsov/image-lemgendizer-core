@@ -3,263 +3,72 @@
  * @module image-lemgendizer
  */
 
-// Core classes
-import { LemGendImage } from './LemGendImage.js'
-import { LemGendTask } from './tasks/LemGendTask.js'
+// IMPORTANT: Don't import LemGendImage here to avoid circular dependency
+// We'll import it dynamically in the functions that need it
 
-// Processors
-import { LemGendaryResize } from './processors/LemGendaryResize.js'
-import { LemGendaryCrop } from './processors/LemGendaryCrop.js'
-import { LemGendaryOptimize } from './processors/LemGendaryOptimize.js'
-import { LemGendaryRename } from './processors/LemGendaryRename.js'
+// Import tasks (no circular dependency)
+import { LemGendTask } from './tasks/LemGendTask.js';
 
-// Templates
-import {
-    LemGendTemplates,
-    TEMPLATE_CATEGORIES,
-    PLATFORMS,
-    getTemplatesByPlatform,
-    getTemplatesByCategory,
-    getTemplateById,
-    getTemplatesByDimensions,
-    getRecommendedTemplates,
-    getTemplateStats,
-    exportTemplates,
-    validateTemplate,
-    addCustomTemplate,
-    getAllPlatforms,
-    getTemplatesGroupedByPlatform,
-    searchTemplates,
-    getTemplateAspectRatio,
-    getFlexibleTemplates,
-    getTemplatesForImage,
-    isVariableDimension,
-    parseDimension
-} from './templates/index.js'
+// Import processors
+import { LemGendaryResize } from './processors/LemGendaryResize.js';
+import { LemGendaryCrop } from './processors/LemGendaryCrop.js';
+import { LemGendaryOptimize } from './processors/LemGendaryOptimize.js';
+import { LemGendaryRename } from './processors/LemGendaryRename.js';
 
-// String utilities
-import {
-    calculateStringSimilarity,
-    escapeRegExp,
-    formatDatePattern,
-    sanitizeFilename,
-    getCommonRenamePatterns,
-    extractPatternVariables,
-    applyPattern
-} from './utils/stringUtils.js'
+// Import template functions
+import { getTemplateById, validateTemplateCompatibility, parseDimension } from './templates/index.js';
 
-// ZIP utilities
-import {
-    createLemGendaryZip,
-    createSimpleZip,
-    extractZip,
-    getZipInfo,
-    createZipWithProgress,
-    createOptimizedZip,
-    lemGendBuildZip,
-    createCustomZip,
-    createTemplateZip,
-    createBatchZip
-} from './utils/zipUtils.js'
+// Import validation utilities
+import { validateTask } from './utils/validationUtils.js';
 
-// Image utilities
-import {
-    getImageDimensions,
-    getMimeTypeFromExtension,
-    hasTransparency,
-    fileToDataURL,
-    dataURLtoFile,
-    resizeImage,
-    cropImage,
-    calculateAspectRatioFit,
-    formatFileSize,
-    getFileExtension,
-    validateImageFile,
-    createThumbnail,
-    batchProcess,
-    analyzeForOptimization,
-    getOptimizationPreset,
-    calculateOptimizationSavings,
-    createOptimizationPreview,
-    generateOptimizationComparison,
-    needsFormatConversion,
-    getRecommendedFormat,
-    getOptimizationStats,
-    getFormatPriorities,
-    checkAICapabilities,
-    isLemGendImage
-} from './utils/imageUtils.js'
-
-// Processing utilities
-import {
-    actuallyResizeImage,
-    actuallyCropImage,
-    applyOptimization,
-    processSingleFile
-} from './utils/processingUtils.js'
-
-// Validation utilities
-import {
-    ValidationErrors,
-    ValidationWarnings,
-    validateResizeOptions,
-    validateCropOptions,
-    validateOptimizationOptions,
-    validateTemplateCompatibility,
-    validateImage,
-    validateSessionImage,
-    validateTask,
-    validateTaskSteps,
-    validateTaskLogic,
-    validateFaviconOptions,
-    getValidationSummary,
-    validateDimensions,
-    validateResize,
-    validateCrop,
-    validateOptimization,
-    validateRenamePattern
-} from './utils/validationUtils.js'
-
-// Re-export everything as named exports
-export {
-    // Core classes
-    LemGendImage,
-    LemGendTask,
-
-    // Processors
-    LemGendaryResize,
-    LemGendaryCrop,
-    LemGendaryOptimize,
-    LemGendaryRename,
-
-    // Templates
-    LemGendTemplates,
-    TEMPLATE_CATEGORIES,
-    PLATFORMS,
-    getTemplatesByPlatform,
-    getTemplatesByCategory,
-    getTemplateById,
-    getTemplatesByDimensions,
-    getRecommendedTemplates,
-    getTemplateStats,
-    exportTemplates,
-    validateTemplate,
-    addCustomTemplate,
-    getAllPlatforms,
-    getTemplatesGroupedByPlatform,
-    searchTemplates,
-    getTemplateAspectRatio,
-    getFlexibleTemplates,
-    getTemplatesForImage,
-    isVariableDimension,
-    parseDimension,
-
-    // String utilities
-    calculateStringSimilarity,
-    escapeRegExp,
-    formatDatePattern,
-    sanitizeFilename,
-    getCommonRenamePatterns,
-    extractPatternVariables,
-    applyPattern,
-
-    // ZIP utilities
-    createLemGendaryZip,
-    createSimpleZip,
-    extractZip,
-    getZipInfo,
-    createZipWithProgress,
-    createCustomZip,
-    createTemplateZip,
-    createBatchZip,
-    createOptimizedZip,
-    lemGendBuildZip,
-
-    // Image utilities
-    getImageDimensions,
-    getMimeTypeFromExtension,
-    hasTransparency,
-    fileToDataURL,
-    dataURLtoFile,
-    resizeImage,
-    cropImage,
-    calculateAspectRatioFit,
-    formatFileSize,
-    getFileExtension,
-    validateImageFile,
-    createThumbnail,
-    batchProcess,
-    analyzeForOptimization,
-    getOptimizationPreset,
-    calculateOptimizationSavings,
-    createOptimizationPreview,
-    generateOptimizationComparison,
-    needsFormatConversion,
-    getRecommendedFormat,
-    getOptimizationStats,
-    getFormatPriorities,
-    checkAICapabilities,
-    isLemGendImage,
-
-    // Processing utilities
-    actuallyResizeImage,
-    actuallyCropImage,
-    applyOptimization,
-    processSingleFile,
-
-    // Validation utilities
-    ValidationErrors,
-    ValidationWarnings,
-    validateImage,
-    validateDimensions,
-    validateResize,
-    validateCrop,
-    validateOptimization,
-    validateRenamePattern,
-    getValidationSummary,
-    validateOptimizationOptions,
-    validateTemplateCompatibility,
-    validateTask,
-    validateSessionImage
-}
+// Import processing utilities
+import { processSingleFile } from './utils/processingUtils.js';
 
 /**
  * Main processing function
- * @param {Array<File|LemGendImage|Object>} files - Image files, LemGendImage instances, or objects with file/lemGendImage properties
- * @param {LemGendTask} task - Processing task
- * @param {Object} options - Processing options
- * @returns {Promise<Array>} Processed images
  */
-export async function lemGendaryProcessBatch(files, task, options = {}) {
+async function lemGendaryProcessBatch(files, task, options = {}) {
     const {
         onProgress = null,
         onWarning = null,
         onError = null,
         parallel = false,
         maxParallel = 4
-    } = options
+    } = options;
 
-    const results = []
-    const totalFiles = files.length
+    const results = [];
+    const totalFiles = files.length;
 
-    console.log('=== lemGendaryProcessBatch START ===')
+    console.log('=== lemGendaryProcessBatch START ===');
     console.log('Batch processing:', {
         totalFiles,
         hasTask: !!task,
         steps: task?.getEnabledSteps()?.length || 0,
         options
-    })
+    });
 
-    console.log('Validating task...')
-    let taskValidation
+    console.log('Validating task...');
+    let taskValidation;
     try {
+        // Dynamically import LemGendImage to avoid circular dependency
+        const { LemGendImage } = await import('./LemGendImage.js');
+
         if (files.length > 0) {
-            taskValidation = await validateTask(task, files[0])
+            // Check if first file is already a LemGendImage
+            let firstFile = files[0];
+            if (!(firstFile instanceof LemGendImage) && !firstFile.constructor?.name === 'LemGendImage') {
+                // Convert to LemGendImage for validation
+                const lemGendImage = new LemGendImage(firstFile);
+                await lemGendImage.load().catch(() => { });
+                taskValidation = await validateTask(task, lemGendImage);
+            } else {
+                taskValidation = await validateTask(task, firstFile);
+            }
         } else {
-            taskValidation = await validateTask(task)
+            taskValidation = await validateTask(task);
         }
     } catch (validationError) {
-        console.error('Task validation threw an error:', validationError)
+        console.error('Task validation threw an error:', validationError);
         taskValidation = {
             isValid: true,
             hasWarnings: true,
@@ -273,7 +82,7 @@ export async function lemGendaryProcessBatch(files, task, options = {}) {
                 canProceed: true,
                 status: 'has_warnings'
             }
-        }
+        };
     }
 
     if (taskValidation.errors && taskValidation.errors.length > 0) {
@@ -281,99 +90,98 @@ export async function lemGendaryProcessBatch(files, task, options = {}) {
             e.severity === 'error' &&
             !e.message.includes('missing file property') &&
             !e.message.includes('invalid file type')
-        )
+        );
 
         if (criticalErrors.length > 0) {
-            console.error('Critical validation errors:', criticalErrors)
-            throw new Error(`Task validation failed: ${criticalErrors.map(e => e.message).join(', ')}`)
+            console.error('Critical validation errors:', criticalErrors);
+            throw new Error(`Task validation failed: ${criticalErrors.map(e => e.message).join(', ')}`);
         } else {
-            console.warn('Non-critical validation errors, proceeding...')
+            console.warn('Non-critical validation errors, proceeding...');
             if (onWarning) {
                 taskValidation.errors.forEach(error => {
                     onWarning({
                         ...error,
                         severity: 'warning'
-                    })
-                })
+                    });
+                });
             }
         }
     }
 
     if (taskValidation.hasWarnings && onWarning) {
-        taskValidation.warnings.forEach(warning => onWarning(warning))
+        taskValidation.warnings.forEach(warning => onWarning(warning));
     }
 
     if (parallel) {
-        const batches = []
+        const batches = [];
         for (let i = 0; i < files.length; i += maxParallel) {
-            batches.push(files.slice(i, i + maxParallel))
+            batches.push(files.slice(i, i + maxParallel));
         }
 
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-            const batch = batches[batchIndex]
+            const batch = batches[batchIndex];
             const batchPromises = batch.map((file, fileIndex) =>
                 processSingleFile(file, task, batchIndex * maxParallel + fileIndex)
-            )
+            );
 
-            const batchResults = await Promise.allSettled(batchPromises)
+            const batchResults = await Promise.allSettled(batchPromises);
 
             batchResults.forEach((result, index) => {
                 if (result.status === 'fulfilled') {
-                    results.push(result.value)
+                    results.push(result.value);
                 } else {
                     const errorResult = {
                         file: batch[index],
                         error: result.reason.message,
                         success: false
-                    }
-                    results.push(errorResult)
-                    if (onError) onError(result.reason, batch[index])
+                    };
+                    results.push(errorResult);
+                    if (onError) onError(result.reason, batch[index]);
                 }
-            })
+            });
 
             if (onProgress) {
-                const progress = results.length / totalFiles
-                onProgress(progress, results.length, totalFiles)
+                const progress = results.length / totalFiles;
+                onProgress(progress, results.length, totalFiles);
             }
         }
     } else {
         for (let i = 0; i < files.length; i++) {
             try {
-                console.log(`\n=== Processing file ${i + 1}/${totalFiles} ===`)
+                console.log(`\n=== Processing file ${i + 1}/${totalFiles} ===`);
 
-                const file = files[i]
+                const file = files[i];
                 console.log('File to process:', {
                     type: file?.constructor?.name,
-                    isLemGendImage: file instanceof LemGendImage,
                     name: file?.name || file?.originalName || file?.file?.name
-                })
+                });
 
-                const result = await processSingleFile(file, task, i)
-                results.push(result)
+                const result = await processSingleFile(file, task, i);
+                results.push(result);
 
                 if (onProgress) {
-                    const progress = (i + 1) / totalFiles
-                    onProgress(progress, i + 1, totalFiles)
+                    const progress = (i + 1) / totalFiles;
+                    onProgress(progress, i + 1, totalFiles);
                 }
             } catch (error) {
-                console.error(`Failed to process file ${i}:`, error)
+                console.error(`Failed to process file ${i}:`, error);
                 const errorResult = {
                     file: files[i],
                     error: error.message,
                     success: false
-                }
-                results.push(errorResult)
-                if (onError) onError(error, files[i])
+                };
+                results.push(errorResult);
+                if (onError) onError(error, files[i]);
             }
         }
     }
 
-    console.log('\n=== Processing complete ===')
+    console.log('\n=== Processing complete ===');
     console.log('Summary:', {
         totalFiles,
         successful: results.filter(r => r.success).length,
         failed: results.filter(r => !r.success).length
-    })
+    });
 
     results.forEach((result, index) => {
         if (result.success) {
@@ -381,194 +189,77 @@ export async function lemGendaryProcessBatch(files, task, options = {}) {
                 success: true,
                 size: result.file?.size,
                 dimensions: result.image ? `${result.image.width}x${result.image.height}` : 'N/A'
-            })
+            });
         } else {
             console.log(`✗ File ${index + 1}: Failed`, {
                 error: result.error,
                 fileName: result.file?.name || 'Unknown'
-            })
+            });
         }
-    })
+    });
 
-    return results
-}
-
-/**
- * Optimize images for ZIP with advanced optimization
- * @param {Array<File|LemGendImage>} images - Images to optimize
- * @param {Object} optimizationOptions - Optimization options
- * @returns {Promise<Array>} Optimized images with results
- */
-export async function optimizeForZip(images, optimizationOptions = {}) {
-    const optimizer = new LemGendaryOptimize(optimizationOptions)
-    const results = []
-
-    for (const image of images) {
-        try {
-            let lemGendImage
-
-            if (image instanceof LemGendImage) {
-                lemGendImage = image
-            } else {
-                lemGendImage = new LemGendImage(image)
-                await lemGendImage.load()
-            }
-
-            const optimizationResult = await optimizer.process(lemGendImage)
-            const optimizedFile = await optimizer.applyOptimization(lemGendImage)
-
-            const optimizedLemGendImage = new LemGendImage(optimizedFile)
-            await optimizedLemGendImage.load()
-
-            results.push({
-                original: lemGendImage,
-                optimized: optimizedLemGendImage,
-                result: optimizationResult,
-                success: true
-            })
-        } catch (error) {
-            console.error('Optimization failed:', error)
-            results.push({
-                original: image,
-                error: error.message,
-                success: false
-            })
-        }
-    }
-
-    return results
-}
-
-/**
- * Create favicon set
- */
-export async function processFaviconSet(file, options = {}) {
-    const {
-        sizes = [16, 32, 48, 64, 128, 256],
-        formats = ['png', 'ico'],
-        includeManifest = true,
-        includeHTML = true
-    } = options
-
-    const results = []
-    const lemGendImage = new LemGendImage(file)
-    await lemGendImage.load()
-
-    for (const size of sizes) {
-        for (const format of formats) {
-            const processed = await generateFaviconVariant(lemGendImage, size, format)
-            results.push(processed)
-        }
-    }
-
-    if (includeManifest) {
-        results.push(generateManifest(lemGendImage, sizes))
-    }
-
-    if (includeHTML) {
-        results.push(generateFaviconHTML(lemGendImage, sizes, formats))
-    }
-
-    return results
-}
-
-async function generateFaviconVariant(image, size, format) {
-    return {
-        size,
-        format,
-        width: size,
-        height: size,
-        name: `favicon-${size}x${size}.${format}`
-    }
-}
-
-function generateManifest(image, sizes) {
-    return {
-        type: 'json',
-        name: 'manifest.json',
-        content: JSON.stringify({
-            name: 'App Icon',
-            icons: sizes.map(size => ({
-                src: `/favicon-${size}x${size}.png`,
-                sizes: `${size}x${size}`,
-                type: 'image/png'
-            }))
-        }, null, 2)
-    }
-}
-
-function generateFaviconHTML(image, sizes, formats) {
-    const htmlLines = [
-        '<!-- Favicon tags for HTML -->',
-        '<link rel="icon" href="/favicon.ico" sizes="any">'
-    ]
-
-    for (const size of sizes) {
-        for (const format of formats) {
-            if (format === 'png') {
-                htmlLines.push(`<link rel="icon" type="image/png" sizes="${size}x${size}" href="/favicon-${size}x${size}.png">`)
-            }
-        }
-    }
-
-    htmlLines.push('<link rel="apple-touch-icon" href="/apple-touch-icon.png">')
-    htmlLines.push('<link rel="manifest" href="/manifest.json">')
-
-    return {
-        type: 'html',
-        name: 'favicon-tags.html',
-        content: htmlLines.join('\n')
-    }
+    return results;
 }
 
 /**
  * Process images using a template
  */
-export async function processWithTemplate(image, templateId, options = {}) {
+async function processWithTemplate(image, templateId, options = {}) {
     try {
-        const template = getTemplateById(templateId)
+        const template = getTemplateById(templateId);
         if (!template) {
-            throw new Error(`Template not found: ${templateId}`)
+            throw new Error(`Template not found: ${templateId}`);
         }
 
         const compatibility = validateTemplateCompatibility(template, {
             width: image.width,
             height: image.height
-        })
+        });
 
         if (!compatibility.compatible) {
-            throw new Error(`Template incompatible: ${compatibility.errors.map(e => e.message).join(', ')}`)
+            throw new Error(`Template incompatible: ${compatibility.errors.map(e => e.message).join(', ')}`);
         }
 
-        const task = new LemGendTask(`Template: ${template.displayName}`, template.description)
+        // Dynamically import LemGendImage
+        const { LemGendImage } = await import('./LemGendImage.js');
 
-        const widthInfo = parseDimension(template.width)
-        const heightInfo = parseDimension(template.height)
+        let lemGendImage;
+        if (image instanceof LemGendImage) {
+            lemGendImage = image;
+        } else {
+            lemGendImage = new LemGendImage(image);
+            await lemGendImage.load();
+        }
+
+        const task = new LemGendTask(`Template: ${template.displayName}`, template.description);
+
+        const widthInfo = parseDimension(template.width);
+        const heightInfo = parseDimension(template.height);
 
         if (!widthInfo.isVariable && !heightInfo.isVariable) {
-            const aspect = widthInfo.value / heightInfo.value
-            const imageAspect = image.width / image.height
+            const aspect = widthInfo.value / heightInfo.value;
+            const imageAspect = lemGendImage.width / lemGendImage.height;
 
             if (Math.abs(aspect - imageAspect) > 0.1) {
-                task.addCrop(widthInfo.value, heightInfo.value, 'smart')
+                task.addCrop(widthInfo.value, heightInfo.value, 'smart');
             } else {
-                task.addResize(Math.max(widthInfo.value, heightInfo.value), 'longest')
+                task.addResize(Math.max(widthInfo.value, heightInfo.value), 'longest');
             }
         } else if (widthInfo.isVariable && !heightInfo.isVariable) {
-            task.addResize(heightInfo.value, 'height')
+            task.addResize(heightInfo.value, 'height');
         } else if (!widthInfo.isVariable && heightInfo.isVariable) {
-            task.addResize(widthInfo.value, 'width')
+            task.addResize(widthInfo.value, 'width');
         }
 
         task.addOptimize(85, 'auto', {
             compressionMode: 'adaptive',
-            preserveTransparency: template.recommendedFormats.includes('png') || template.recommendedFormats.includes('svg')
-        })
+            preserveTransparency: template.recommendedFormats?.includes('png') || template.recommendedFormats?.includes('svg')
+        });
 
-        const results = await lemGendaryProcessBatch([image], task)
+        const results = await lemGendaryProcessBatch([lemGendImage], task);
 
         if (results.length === 0 || !results[0].success) {
-            throw new Error('Template processing failed')
+            throw new Error('Template processing failed');
         }
 
         return {
@@ -578,46 +269,53 @@ export async function processWithTemplate(image, templateId, options = {}) {
             file: results[0].file,
             compatibility,
             warnings: compatibility.warnings
-        }
+        };
     } catch (error) {
-        console.error('Template processing failed:', error)
+        console.error('Template processing failed:', error);
         return {
             success: false,
             error: error.message,
             templateId
-        }
+        };
     }
 }
 
 /**
  * Process flexible dimension template
  */
-export async function processFlexibleTemplate(image, template, options = {}) {
-    const widthInfo = parseDimension(template.width)
-    const heightInfo = parseDimension(template.height)
+async function processFlexibleTemplate(image, template, options = {}) {
+    // Dynamically import LemGendImage
+    const { LemGendImage } = await import('./LemGendImage.js');
 
-    const task = new LemGendTask(`Flexible: ${template.displayName}`, template.description)
-
-    if (widthInfo.isVariable && !heightInfo.isVariable) {
-        const scale = heightInfo.value / image.height
-        const targetWidth = Math.round(image.width * scale)
-        task.addResize(heightInfo.value, 'height')
-    } else if (!widthInfo.isVariable && heightInfo.isVariable) {
-        const scale = widthInfo.value / image.width
-        const targetHeight = Math.round(image.height * scale)
-        task.addResize(widthInfo.value, 'width')
-    } else if (widthInfo.isVariable && heightInfo.isVariable) {
-        task.addOptimize(85, 'auto')
+    let lemGendImage;
+    if (image instanceof LemGendImage) {
+        lemGendImage = image;
+    } else {
+        lemGendImage = new LemGendImage(image);
+        await lemGendImage.load();
     }
 
-    const results = await lemGendaryProcessBatch([image], task)
-    return results[0] || { success: false, error: 'Processing failed' }
+    const widthInfo = parseDimension(template.width);
+    const heightInfo = parseDimension(template.height);
+
+    const task = new LemGendTask(`Flexible: ${template.displayName}`, template.description);
+
+    if (widthInfo.isVariable && !heightInfo.isVariable) {
+        task.addResize(heightInfo.value, 'height');
+    } else if (!widthInfo.isVariable && heightInfo.isVariable) {
+        task.addResize(widthInfo.value, 'width');
+    } else if (widthInfo.isVariable && heightInfo.isVariable) {
+        task.addOptimize(85, 'auto');
+    }
+
+    const results = await lemGendaryProcessBatch([lemGendImage], task);
+    return results[0] || { success: false, error: 'Processing failed' };
 }
 
 /**
  * Get library version and info
  */
-export function getLibraryInfo() {
+function getLibraryInfo() {
     return {
         name: 'LemGendary Image Processor',
         version: '2.2.0',
@@ -646,11 +344,6 @@ export function getLibraryInfo() {
                 description: 'Batch renaming'
             }
         },
-        templates: {
-            total: LemGendTemplates?.ALL?.length || 0,
-            categories: TEMPLATE_CATEGORIES?.length || 0,
-            platforms: PLATFORMS ? Object.keys(PLATFORMS).length : 0
-        },
         features: [
             'Smart AI cropping',
             'Face detection',
@@ -666,13 +359,40 @@ export function getLibraryInfo() {
             'Flexible dimension templates',
             'Variable height/width support'
         ]
-    }
+    };
 }
+
+// Export core functionality
+export {
+    // Tasks
+    LemGendTask,
+
+    // Processors
+    LemGendaryResize,
+    LemGendaryCrop,
+    LemGendaryOptimize,
+    LemGendaryRename,
+
+    // Main processing function
+    lemGendaryProcessBatch,
+
+    // Template utilities
+    processWithTemplate,
+    processFlexibleTemplate,
+
+    // Info function
+    getLibraryInfo
+};
+
+// Note: LemGendImage is NOT exported here to avoid circular dependency
+// It should be imported directly from './LemGendImage.js'
 
 // Default export for convenience
 export default {
-    // Core classes
-    LemGendImage,
+    // Note: LemGendImage is not included in default export to avoid circular dependency
+    // Users should import it directly: import { LemGendImage } from './LemGendImage.js'
+
+    // Tasks
     LemGendTask,
 
     // Processors
@@ -683,71 +403,7 @@ export default {
 
     // Main functions
     lemGendaryProcessBatch,
-    lemGendBuildZip,
     getLibraryInfo,
-    processFaviconSet,
-    optimizeForZip,
-    createOptimizedZip,
     processWithTemplate,
-    processFlexibleTemplate,
-
-    // Templates
-    LemGendTemplates,
-    TEMPLATE_CATEGORIES,
-    PLATFORMS,
-    getTemplatesByPlatform,
-    getTemplatesByCategory,
-    getTemplateById,
-    getTemplatesByDimensions,
-    getRecommendedTemplates,
-    getTemplateStats,
-    exportTemplates,
-    validateTemplate,
-    addCustomTemplate,
-    getAllPlatforms,
-    getTemplatesGroupedByPlatform,
-    searchTemplates,
-    getTemplateAspectRatio,
-    getFlexibleTemplates,
-    getTemplatesForImage,
-    isVariableDimension,
-    parseDimension,
-
-    // ZIP utilities
-    createLemGendaryZip,
-    createSimpleZip,
-    extractZip,
-    getZipInfo,
-    createZipWithProgress,
-    createCustomZip,
-    createTemplateZip,
-    createBatchZip,
-
-    // Image utilities
-    getImageDimensions,
-    getMimeTypeFromExtension,
-    hasTransparency,
-    fileToDataURL,
-    dataURLtoFile,
-    resizeImage,
-    cropImage,
-    calculateAspectRatioFit,
-    formatFileSize,
-    getFileExtension,
-    validateImageFile,
-    createThumbnail,
-    batchProcess,
-
-    // Validation utilities
-    ValidationErrors,
-    ValidationWarnings,
-    validateImage,
-    validateDimensions,
-    validateResize,
-    validateCrop,
-    validateOptimization,
-    validateRenamePattern,
-    getValidationSummary,
-    validateOptimizationOptions,
-    validateTemplateCompatibility
-}
+    processFlexibleTemplate
+};

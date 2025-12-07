@@ -5,18 +5,33 @@
     "type": "module",
     "main": "./dist/index.cjs.js",
     "module": "./dist/index.es.js",
-    "types": "./dist/types/index.d.ts",
     "exports": {
         ".": {
             "import": "./dist/index.es.js",
-            "require": "./dist/index.cjs.js",
-            "types": "./dist/types/index.d.ts"
+            "require": "./dist/index.cjs.js"
+        },
+        "./utils": {
+            "import": "./dist/utils/index.js",
+            "require": "./dist/utils/index.cjs.js"
+        },
+        "./processors": {
+            "import": "./dist/processors/index.js",
+            "require": "./dist/processors/index.cjs.js"
+        },
+        "./templates": {
+            "import": "./dist/templates/index.js",
+            "require": "./dist/templates/index.cjs.js"
         }
     },
     "files": [
         "dist",
         "README.md"
     ],
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
     "keywords": [
         "image",
         "processing",
@@ -30,10 +45,12 @@
         "url": "git+https://github.com/lemgenda/image-lemgendizer-core.git"
     },
     "devDependencies": {
-        "vite": "^5.4.21",
-        "vite-plugin-dts": "^3.9.1"
+        "vite": "^5.4.21"
     },
     "peerDependencies": {
-        "jszip": "^3.10.0"
+        "jszip": "^3.10.1"
+    },
+    "dependencies": {
+        "jszip": "^3.10.1"
     }
 }

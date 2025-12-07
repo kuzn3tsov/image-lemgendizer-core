@@ -32,6 +32,8 @@ core/
 │   │   ├── processingUtils.js
 │   │   └── validationUtils.js
 │   ├── LemGendImage.js          # Core image class
+│   ├── main.js
+│   ├── build.js
 │   └── index.js
 ├── tests/                   # Test folder inside core
 │   ├── processors/
