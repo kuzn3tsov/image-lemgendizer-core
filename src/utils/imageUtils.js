@@ -428,7 +428,7 @@ export function calculateAspectRatioFit(originalWidth, originalHeight, targetSiz
             return { width: newWidth, height: newHeight };
         } else {
             const newHeight = targetSize;
-            const newWidth = Math.round((originalWidth / originalHeight) * targetSize);
+            const newWidth = Math.round((originalWidth / originalHeight) * newHeight);
             return { width: newWidth, height: newHeight };
         }
     }
@@ -506,17 +506,10 @@ export function validateImageFile(file) {
 
     // Check file type
     const validTypes = [
-        'image/jpeg',
-        'image/jpg',
-        'image/png',
-        'image/webp',
-        'image/gif',
-        'image/svg+xml',
-        'image/bmp',
-        'image/tiff',
-        'image/avif',
-        'image/x-icon',
-        'image/vnd.microsoft.icon'
+        'image/jpeg', 'image/jpg', 'image/png',
+        'image/webp', 'image/gif', 'image/svg+xml',
+        'image/bmp', 'image/tiff', 'image/avif',
+        'image/x-icon', 'image/vnd.microsoft.icon'
     ];
 
     if (!validTypes.includes(file.type)) {
@@ -1149,30 +1142,3 @@ export function isLemGendImage(obj) {
         obj.constructor &&
         obj.constructor.name === 'LemGendImage';
 }
-
-export default {
-    getImageDimensions,
-    getMimeTypeFromExtension,
-    hasTransparency,
-    fileToDataURL,
-    dataURLtoFile,
-    resizeImage,
-    cropImage,
-    calculateAspectRatioFit,
-    formatFileSize,
-    getFileExtension,
-    validateImageFile,
-    createThumbnail,
-    batchProcess,
-    analyzeForOptimization,
-    getOptimizationPreset,
-    calculateOptimizationSavings,
-    createOptimizationPreview,
-    generateOptimizationComparison,
-    needsFormatConversion,
-    getRecommendedFormat,
-    getOptimizationStats,
-    getFormatPriorities,
-    checkAICapabilities,
-    isLemGendImage
-};

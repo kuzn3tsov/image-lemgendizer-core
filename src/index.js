@@ -3,31 +3,122 @@
  * @module image-lemgendizer
  */
 
-// IMPORTANT: Don't import LemGendImage here to avoid circular dependency
-// We'll import it dynamically in the functions that need it
+// ===== CORE CLASSES =====
+export { LemGendImage } from './LemGendImage.js';
+export { LemGendTask } from './tasks/LemGendTask.js';
 
-// Import tasks (no circular dependency)
-import { LemGendTask } from './tasks/LemGendTask.js';
+// ===== PROCESSOR CLASSES =====
+export { LemGendaryResize } from './processors/LemGendaryResize.js';
+export { LemGendaryCrop } from './processors/LemGendaryCrop.js';
+export { LemGendaryOptimize } from './processors/LemGendaryOptimize.js';
+export { LemGendaryRename } from './processors/LemGendaryRename.js';
 
-// Import processors
-import { LemGendaryResize } from './processors/LemGendaryResize.js';
-import { LemGendaryCrop } from './processors/LemGendaryCrop.js';
-import { LemGendaryOptimize } from './processors/LemGendaryOptimize.js';
-import { LemGendaryRename } from './processors/LemGendaryRename.js';
+// ===== TEMPLATES =====
+export { LemGendTemplates } from './templates/templateConfig.js';
 
-// Import template functions
-import { getTemplateById, validateTemplateCompatibility, parseDimension } from './templates/index.js';
+// ===== UTILITIES =====
+// ZIP Utilities
+export {
+    createLemGendaryZip,
+    createSimpleZip,
+    extractZip,
+    getZipInfo,
+    createZipWithProgress,
+    createOptimizedZip,
+    createCustomZip,
+    createTemplateZip,
+    createBatchZip
+} from './utils/zipUtils.js';
 
-// Import validation utilities
-import { validateTask } from './utils/validationUtils.js';
+// Image Utilities
+export {
+    getImageDimensions,
+    formatFileSize,
+    getFileExtension,
+    validateImageFile,
+    createThumbnail,
+    analyzeForOptimization,
+    resizeImage,
+    cropImage,
+    fileToDataURL,
+    calculateAspectRatioFit,
+    getOptimizationPreset,
+    getRecommendedFormat,
+    checkAICapabilities,
+    getMimeTypeFromExtension,
+    hasTransparency,
+    dataURLtoFile,
+    batchProcess,
+    needsFormatConversion,
+    getOptimizationStats,
+    getFormatPriorities,
+    createOptimizationPreview,
+    generateOptimizationComparison,
+    calculateOptimizationSavings,
+    isLemGendImage
+} from './utils/imageUtils.js';
 
-// Import processing utilities
-import { processSingleFile } from './utils/processingUtils.js';
+// String Utilities
+export {
+    sanitizeFilename,
+    applyPattern,
+    getCommonRenamePatterns,
+    calculateStringSimilarity,
+    escapeRegExp,
+    formatDatePattern,
+    extractPatternVariables
+} from './utils/stringUtils.js';
 
-/**
- * Main processing function
- */
-async function lemGendaryProcessBatch(files, task, options = {}) {
+// Processing Utilities
+export {
+    processSingleFile,
+    actuallyResizeImage,
+    actuallyCropImage,
+    applyOptimization,
+    getImageOutputs
+} from './utils/processingUtils.js';
+
+// Validation Utilities
+export {
+    validateTask,
+    validateImage,
+    validateResizeOptions,
+    validateCropOptions,
+    validateOptimizationOptions,
+    validateRenamePattern,
+    ValidationErrors,
+    ValidationWarnings,
+    getValidationSummary,
+    validateDimensions,
+    validateResize,
+    validateCrop,
+    validateOptimization,
+    validateSessionImage,
+    validateFaviconOptions,
+    validateTaskSteps,
+    validateTaskLogic
+} from './utils/validationUtils.js';
+
+// Template Utilities
+export {
+    getTemplateById,
+    getAllPlatforms,
+    getTemplatesByCategory,
+    getFlexibleTemplates,
+    validateTemplateCompatibility,
+    getTemplateAspectRatio,
+    getTemplateAspectRatioString,
+    getTemplateStats
+} from './utils/templateUtils.js';
+
+// Shared Utilities
+export {
+    parseDimension,
+    isVariableDimension
+} from './utils/sharedUtils.js';
+
+// ===== MAIN PROCESSING FUNCTIONS =====
+export async function lemGendaryProcessBatch(files, task, options = {}) {
     const {
         onProgress = null,
         onWarning = null,
@@ -50,14 +141,9 @@ async function lemGendaryProcessBatch(files, task, options = {}) {
     console.log('Validating task...');
     let taskValidation;
     try {
-        // Dynamically import LemGendImage to avoid circular dependency
-        const { LemGendImage } = await import('./LemGendImage.js');
-
         if (files.length > 0) {
-            // Check if first file is already a LemGendImage
             let firstFile = files[0];
-            if (!(firstFile instanceof LemGendImage) && !firstFile.constructor?.name === 'LemGendImage') {
-                // Convert to LemGendImage for validation
+            if (!(firstFile instanceof LemGendImage)) {
                 const lemGendImage = new LemGendImage(firstFile);
                 await lemGendImage.load().catch(() => { });
                 taskValidation = await validateTask(task, lemGendImage);
@@ -183,110 +269,75 @@ async function lemGendaryProcessBatch(files, task, options = {}) {
         failed: results.filter(r => !r.success).length
     });
 
-    results.forEach((result, index) => {
-        if (result.success) {
-            console.log(`✓ File ${index + 1}: ${result.image?.originalName || 'Unknown'}`, {
-                success: true,
-                size: result.file?.size,
-                dimensions: result.image ? `${result.image.width}x${result.image.height}` : 'N/A'
-            });
-        } else {
-            console.log(`✗ File ${index + 1}: Failed`, {
-                error: result.error,
-                fileName: result.file?.name || 'Unknown'
-            });
-        }
-    });
-
     return results;
 }
 
-/**
- * Process images using a template
- */
-async function processWithTemplate(image, templateId, options = {}) {
-    try {
-        const template = getTemplateById(templateId);
-        if (!template) {
-            throw new Error(`Template not found: ${templateId}`);
-        }
-
-        const compatibility = validateTemplateCompatibility(template, {
-            width: image.width,
-            height: image.height
-        });
-
-        if (!compatibility.compatible) {
-            throw new Error(`Template incompatible: ${compatibility.errors.map(e => e.message).join(', ')}`);
-        }
-
-        // Dynamically import LemGendImage
-        const { LemGendImage } = await import('./LemGendImage.js');
-
-        let lemGendImage;
-        if (image instanceof LemGendImage) {
-            lemGendImage = image;
-        } else {
-            lemGendImage = new LemGendImage(image);
-            await lemGendImage.load();
-        }
-
-        const task = new LemGendTask(`Template: ${template.displayName}`, template.description);
-
-        const widthInfo = parseDimension(template.width);
-        const heightInfo = parseDimension(template.height);
-
-        if (!widthInfo.isVariable && !heightInfo.isVariable) {
-            const aspect = widthInfo.value / heightInfo.value;
-            const imageAspect = lemGendImage.width / lemGendImage.height;
-
-            if (Math.abs(aspect - imageAspect) > 0.1) {
-                task.addCrop(widthInfo.value, heightInfo.value, 'smart');
-            } else {
-                task.addResize(Math.max(widthInfo.value, heightInfo.value), 'longest');
-            }
-        } else if (widthInfo.isVariable && !heightInfo.isVariable) {
-            task.addResize(heightInfo.value, 'height');
-        } else if (!widthInfo.isVariable && heightInfo.isVariable) {
-            task.addResize(widthInfo.value, 'width');
-        }
-
-        task.addOptimize(85, 'auto', {
-            compressionMode: 'adaptive',
-            preserveTransparency: template.recommendedFormats?.includes('png') || template.recommendedFormats?.includes('svg')
-        });
-
-        const results = await lemGendaryProcessBatch([lemGendImage], task);
-
-        if (results.length === 0 || !results[0].success) {
-            throw new Error('Template processing failed');
-        }
-
-        return {
-            success: true,
-            template,
-            image: results[0].image,
-            file: results[0].file,
-            compatibility,
-            warnings: compatibility.warnings
-        };
-    } catch (error) {
-        console.error('Template processing failed:', error);
-        return {
-            success: false,
-            error: error.message,
-            templateId
-        };
+// ===== TEMPLATE PROCESSING FUNCTIONS =====
+export async function processWithTemplate(image, templateId, options = {}) {
+    const template = getTemplateById(templateId);
+    if (!template) {
+        throw new Error(`Template not found: ${templateId}`);
     }
+
+    const compatibility = validateTemplateCompatibility(template, {
+        width: image.width,
+        height: image.height
+    });
+
+    if (!compatibility.compatible) {
+        throw new Error(`Template incompatible: ${compatibility.errors.map(e => e.message).join(', ')}`);
+    }
+
+    let lemGendImage;
+    if (image instanceof LemGendImage) {
+        lemGendImage = image;
+    } else {
+        lemGendImage = new LemGendImage(image);
+        await lemGendImage.load();
+    }
+
+    const task = new LemGendTask(`Template: ${template.displayName}`, template.description);
+
+    const widthInfo = parseDimension(template.width);
+    const heightInfo = parseDimension(template.height);
+
+    if (!widthInfo.isVariable && !heightInfo.isVariable) {
+        const aspect = widthInfo.value / heightInfo.value;
+        const imageAspect = lemGendImage.width / lemGendImage.height;
+
+        if (Math.abs(aspect - imageAspect) > 0.1) {
+            task.addCrop(widthInfo.value, heightInfo.value, 'smart');
+        } else {
+            task.addResize(Math.max(widthInfo.value, heightInfo.value), 'longest');
+        }
+    } else if (widthInfo.isVariable && !heightInfo.isVariable) {
+        task.addResize(heightInfo.value, 'height');
+    } else if (!widthInfo.isVariable && heightInfo.isVariable) {
+        task.addResize(widthInfo.value, 'width');
+    }
+
+    task.addOptimize(85, 'auto', {
+        compressionMode: 'adaptive',
+        preserveTransparency: template.recommendedFormats?.includes('png') || template.recommendedFormats?.includes('svg')
+    });
+
+    const results = await lemGendaryProcessBatch([lemGendImage], task);
+
+    if (results.length === 0 || !results[0].success) {
+        throw new Error('Template processing failed');
+    }
+
+    return {
+        success: true,
+        template,
+        image: results[0].image,
+        file: results[0].file,
+        compatibility,
+        warnings: compatibility.warnings
+    };
 }
 
-/**
- * Process flexible dimension template
- */
-async function processFlexibleTemplate(image, template, options = {}) {
-    // Dynamically import LemGendImage
-    const { LemGendImage } = await import('./LemGendImage.js');
-
+export async function processFlexibleTemplate(image, template, options = {}) {
     let lemGendImage;
     if (image instanceof LemGendImage) {
         lemGendImage = image;
@@ -312,13 +363,62 @@ async function processFlexibleTemplate(image, template, options = {}) {
     return results[0] || { success: false, error: 'Processing failed' };
 }
 
-/**
- * Get library version and info
- */
-function getLibraryInfo() {
+export async function processFaviconSet(image, options = {}) {
+    try {
+        let lemGendImage;
+        if (image instanceof LemGendImage) {
+            lemGendImage = image;
+        } else {
+            lemGendImage = new LemGendImage(image);
+            await lemGendImage.load();
+        }
+
+        const sizes = options.sizes || [16, 32, 48, 64];
+        const format = options.format || 'png';
+
+        const results = [];
+        for (const size of sizes) {
+            try {
+                const faviconFile = await resizeImage(lemGendImage.file, size, size, format, 1.0);
+                results.push({
+                    size: `${size}x${size}`,
+                    dimensions: { width: size, height: size },
+                    file: faviconFile,
+                    format,
+                    name: `favicon-${size}x${size}.${format}`
+                });
+            } catch (error) {
+                console.warn(`Failed to create ${size}x${size} favicon:`, error);
+            }
+        }
+
+        return {
+            success: results.length > 0,
+            favicons: results,
+            original: lemGendImage,
+            summary: {
+                totalRequested: sizes.length,
+                created: results.length,
+                formats: [...new Set(results.map(r => r.format))]
+            },
+            warnings: results.length < sizes.length ?
+                `Created ${results.length} of ${sizes.length} favicons` :
+                null
+        };
+    } catch (error) {
+        console.error('Favicon processing failed:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// ===== LIBRARY INFO =====
+export function getLibraryInfo() {
     return {
         name: 'LemGendary Image Processor',
-        version: '2.2.0',
+        version: '3.0.0',
         description: 'Batch image processing with intelligent operations, AI-powered smart cropping, and advanced optimization',
         author: 'LemGenda',
         license: 'MIT',
@@ -344,6 +444,14 @@ function getLibraryInfo() {
                 description: 'Batch renaming'
             }
         },
+        templateUtilities: {
+            getTemplateById: 'Get template by ID',
+            validateTemplateCompatibility: 'Validate template against image',
+            parseDimension: 'Parse dimension strings',
+            getAllPlatforms: 'Get all available platforms',
+            getTemplateAspectRatio: 'Calculate template aspect ratio',
+            getTemplateStats: 'Get template statistics (overall or specific)'
+        },
         features: [
             'Smart AI cropping',
             'Face detection',
@@ -361,49 +469,3 @@ function getLibraryInfo() {
         ]
     };
 }
-
-// Export core functionality
-export {
-    // Tasks
-    LemGendTask,
-
-    // Processors
-    LemGendaryResize,
-    LemGendaryCrop,
-    LemGendaryOptimize,
-    LemGendaryRename,
-
-    // Main processing function
-    lemGendaryProcessBatch,
-
-    // Template utilities
-    processWithTemplate,
-    processFlexibleTemplate,
-
-    // Info function
-    getLibraryInfo
-};
-
-// Note: LemGendImage is NOT exported here to avoid circular dependency
-// It should be imported directly from './LemGendImage.js'
-
-// Default export for convenience
-export default {
-    // Note: LemGendImage is not included in default export to avoid circular dependency
-    // Users should import it directly: import { LemGendImage } from './LemGendImage.js'
-
-    // Tasks
-    LemGendTask,
-
-    // Processors
-    LemGendaryResize,
-    LemGendaryCrop,
-    LemGendaryOptimize,
-    LemGendaryRename,
-
-    // Main functions
-    lemGendaryProcessBatch,
-    getLibraryInfo,
-    processWithTemplate,
-    processFlexibleTemplate
-};

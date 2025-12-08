@@ -4,24 +4,11 @@
  */
 
 // Import core utilities
-import { getFileExtension, formatFileSize } from './imageUtils.js';
-import { validateTask } from './validationUtils.js';
+import { getFileExtension, formatFileSize, isLemGendImage } from './imageUtils.js';
 
-// Import processors statically
-import { LemGendaryResize } from '../processors/LemGendaryResize.js';
-import { LemGendaryCrop } from '../processors/LemGendaryCrop.js';
-import { LemGendaryOptimize } from '../processors/LemGendaryOptimize.js';
-import { LemGendaryRename } from '../processors/LemGendaryRename.js';
-
-// Helper function to check if object is LemGendImage
-export function isLemGendImage(obj) {
-    return obj &&
-        typeof obj === 'object' &&
-        obj.constructor &&
-        obj.constructor.name === 'LemGendImage';
-}
-
-// Helper function to get image outputs
+/**
+ * Helper function to get image outputs
+ */
 export function getImageOutputs(image) {
     if (!image) return [];
     if (typeof image.getAllOutputs === 'function') {
@@ -254,8 +241,13 @@ export async function processSingleFile(file, task, index) {
     let lemGendImage;
 
     try {
-        // Dynamically import LemGendImage to avoid circular dependency
+        // Dynamically import classes to avoid circular dependency
         const { LemGendImage } = await import('../LemGendImage.js');
+        const { LemGendTask } = await import('../tasks/LemGendTask.js');
+        const { LemGendaryResize } = await import('../processors/LemGendaryResize.js');
+        const { LemGendaryCrop } = await import('../processors/LemGendaryCrop.js');
+        const { LemGendaryOptimize } = await import('../processors/LemGendaryOptimize.js');
+        const { LemGendaryRename } = await import('../processors/LemGendaryRename.js');
 
         if (isLemGendImage(file)) {
             lemGendImage = file;
@@ -352,18 +344,8 @@ export async function processSingleFile(file, task, index) {
             fileType: lemGendImage.file?.constructor?.name
         });
 
-        try {
-            const validation = await validateTask(task, lemGendImage);
-
-            if (!validation.isValid) {
-                const errorMessage = validation.errors.map(e => e.message).join(', ');
-                console.warn('Task validation warnings:', errorMessage);
-            }
-        } catch (validationError) {
-            console.warn('Task validation threw an error, continuing anyway:', validationError);
-        }
-
-        console.log('Task validation passed (or warnings ignored), proceeding with processing...');
+        // Note: validateTask is dynamically imported within the function when needed
+        // to avoid circular dependency
 
         const enabledSteps = task.getEnabledSteps();
         let currentFile = lemGendImage.file;
@@ -470,21 +452,19 @@ export async function processSingleFile(file, task, index) {
                             savings: optimizeResult.savings
                         });
 
-                        // Get the optimize method - check for both possible method names
-                        const optimizeMethod = optimizeProcessor.applyOptimization || optimizeProcessor.optimize;
-                        if (!optimizeMethod) {
-                            throw new Error('Optimize processor missing applyOptimization or optimize method');
-                        }
-
-                        currentFile = await optimizeMethod.call(optimizeProcessor, lemGendImage);
+                        currentFile = await applyOptimization(
+                            currentFile,
+                            currentDimensions,
+                            step.options,
+                            lemGendImage.transparency || false
+                        );
 
                         lemGendImage.addOperation('optimize', optimizeResult);
-                        console.log(`✓ Optimized to: ${optimizeResult.optimization.selectedFormat} at ${optimizeResult.optimization.compression.quality}%`);
+                        console.log(`✓ Optimized to: ${step.options.format} at ${step.options.quality}%`);
                         console.log('File after optimize:', {
                             name: currentFile.name,
                             size: currentFile.size,
-                            type: currentFile.type,
-                            savings: `${optimizeResult.savings.savingsPercent}%`
+                            type: currentFile.type
                         });
                         break;
 
@@ -549,13 +529,3 @@ export async function processSingleFile(file, task, index) {
         };
     }
 }
-
-// Default export
-export default {
-    actuallyResizeImage,
-    actuallyCropImage,
-    applyOptimization,
-    processSingleFile,
-    isLemGendImage,
-    getImageOutputs
-};

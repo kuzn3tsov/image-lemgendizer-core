@@ -133,13 +133,3 @@ export function applyPattern(pattern, variables) {
 
     return result
 }
-
-export default {
-    calculateStringSimilarity,
-    escapeRegExp,
-    formatDatePattern,
-    sanitizeFilename,
-    getCommonRenamePatterns,
-    extractPatternVariables,
-    applyPattern
-}

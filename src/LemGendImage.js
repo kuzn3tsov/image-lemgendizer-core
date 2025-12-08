@@ -6,11 +6,9 @@
 
 // Import utility functions
 import {
-    getImageDimensions,
     hasTransparency,
     createThumbnail,
     analyzeForOptimization,
-    formatFileSize,
     getFileExtension,
     fileToDataURL
 } from './utils/imageUtils.js';

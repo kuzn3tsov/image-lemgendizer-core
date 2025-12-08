@@ -1,795 +1,748 @@
 # LemGendary Image Processor
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![npm version](https://img.shields.io/npm/v/@lemgenda/image-lemgendizer.svg)](https://www.npmjs.com/package/@lemgenda/image-lemgendizer)
-[![Downloads](https://img.shields.io/npm/dm/@lemgenda/image-lemgendizer.svg)](https://www.npmjs.com/package/@lemgenda/image-lemgendizer)
+A powerful, client-side batch image processing library with intelligent operations, AI-powered smart cropping, advanced optimization, and template support. Process images directly in the browser with no server upload required.
 
-A powerful, client-side batch image processing library with intelligent resizing, cropping, optimization, and template support. Built for modern web applications with zero external dependencies for core operations.
+[https://img.shields.io/npm/v/@lemgenda/image-lemgendizer](https://img.shields.io/npm/v/@lemgenda/image-lemgendizer)
+[https://img.shields.io/npm/l/@lemgenda/image-lemgendizer](https://img.shields.io/npm/l/@lemgenda/image-lemgendizer)
+[https://img.shields.io/bundlephobia/minzip/@lemgenda/image-lemgendizer](https://img.shields.io/bundlephobia/minzip/@lemgenda/image-lemgendizer)
 
-## Project Structure
+## ✨ Features
+
+### 🎯 Intelligent Processing
+
+-   Smart AI Cropping: Face, object, and saliency detection
+
+-   Content-Aware Resizing: Maintain aspect ratio with intelligent dimension selection
+
+-   Advanced Optimization: WebP, AVIF, JPEG, PNG with adaptive compression
+
+-   Batch Processing: Process multiple images with progress tracking
+
+
+### 🏗️ Core Architecture
+
+-   Unified Processing Pipeline: Chain resize, crop, optimize, rename operations
+
+-   Template System: Pre-configured templates for social media, web, favicons, etc.
+
+-   Flexible Dimensions: Support for variable width/height templates
+
+-   Optimization-First ZIP: Create organized ZIP exports with metadata
+
+
+### 🔧 Technical Features
+
+-   100% Client-Side: No server upload, all processing in browser
+
+-   Modern Format Support: WebP, AVIF, SVG, ICO, plus traditional formats
+
+-   Favicon Generation: Complete favicon sets with manifest generation
+
+-   Validation System: Comprehensive validation with warnings and errors
+
+-   Source Maps: Full debugging support in development
+
+
+## 📦 Installation
+
+```
+\# npm
+npm install @lemgenda/image-lemgendizer
+
+\# yarn
+yarn add @lemgenda/image-lemgendizer
+
+\# pnpm
+pnpm add @lemgenda/image-lemgendizer
+```
+
+## 🚀 Quick Start
+
+### Basic Usage
+
+```
+import {
+  getLemGendTask,
+  getLemGendImage,
+  lemGendaryProcessBatch
+} from '@lemgenda/image-lemgendizer';
+
+async function processImage(file) {
+  // Create a task with processing steps
+  const LemGendTask \= await getLemGendTask();
+  const task \= new LemGendTask('Web Optimization', 'Optimize images for web');
+
+  task
+    .addResize(1920, 'longest')      // Resize to max 1920px (maintain aspect)
+    .addOptimize(85, 'auto')          // Auto-format selection at 85% quality
+    .addRename('{name}-{width}w');    // Rename with pattern
+
+  // Create image instance
+  const LemGendImage \= await getLemGendImage();
+  const image \= new LemGendImage(file);
+  await image.load();
+
+  // Process the image
+  const results \= await lemGendaryProcessBatch(\[image\], task, {
+    onProgress: (progress, current, total) \=> {
+      console.log(\`Processing: ${Math.round(progress \* 100)}%\`);
+    }
+  });
+
+  return results\[0\].file; // Get processed File object
+}
+```
+
+## 📚 Core Concepts
+
+### Core Classes
+
+```
+// Import core classes directly
+import { LemGendImage, LemGendTask } from '@lemgenda/image-lemgendizer';
+
+// Create image instance
+const image = new LemGendImage(file);
+await image.load();
+
+// Create task
+const task = new LemGendTask('My Processing Task');
+task.addResize(1920, 'longest').addOptimize(85, 'webp');
+
+// Process
+const results = await lemGendaryProcessBatch([image], task);
+```
+
+### LemGendImage - The Image Container
+
+```
+import { getLemGendImage } from '@lemgenda/image-lemgendizer';
+
+const LemGendImage \= await getLemGendImage();
+
+// Create from File
+const image \= new LemGendImage(file);
+await image.load();
+
+// Access image info
+console.log(image.getInfo());
+// {
+//   id: 'lemgend\_1234567890\_abc123',
+//   name: 'photo.jpg',
+//   width: 4000,
+//   height: 3000,
+//   originalSize: 5242880,
+//   aspectRatio: 1.333,
+//   transparency: false,
+//   optimizationScore: 45
+// }
+
+// Get optimization recommendations
+const recommendations \= image.getOptimizationRecommendations();
+// {
+//   format: 'webp',
+//   quality: 85,
+//   resize: { width: 1920, height: 1440 },
+//   priority: 'medium'
+// }
+
+// Create thumbnail
+const thumbnail \= await image.createThumbnail(200);
+```
+
+### LemGendTask - Processing Pipeline
+
+```
+import { getLemGendTask } from '@lemgenda/image-lemgendizer';
+
+const LemGendTask \= await getLemGendTask();
+
+// Create task with chaining
+const task \= new LemGendTask('Social Media Package', 'Prepare images for Instagram and Facebook');
+
+task
+  // Resize to Instagram max width
+  .addResize(1080, 'longest')
+
+  // Smart crop for Instagram square
+  .addSmartCrop(1080, 1080, {
+    mode: 'face',
+    confidenceThreshold: 80,
+    multipleFaces: true
+  })
+
+  // High-quality optimization
+  .addOptimize(90, 'webp', {
+    compressionMode: 'balanced',
+    preserveTransparency: true
+  })
+
+  // Rename with social media pattern
+  .addRename('instagram-{name}-{index}');
+
+// Validate task
+const validation \= await task.validate(image);
+console.log(validation.isValid); // true/false
+console.log(validation.warnings); // Array of warnings
+
+// Get task summary
+const summary \= task.getValidationSummary();
+console.log(summary);
+// {
+//   totalSteps: 4,
+//   errorCount: 0,
+//   warningCount: 1,
+//   taskType: 'general',
+//   canProceed: true
+// }
+```
+
+## 🎨 Processing Examples
+
+### Example 1: Web Optimization Pipeline
+
+```
+const task \= new LemGendTask('Web Optimization');
+
+task
+  .addResize(1920, 'longest', {
+    algorithm: 'lanczos3',
+    maintainAspectRatio: true
+  })
+  .addOptimize(85, 'auto', {
+    maxDisplayWidth: 1920,
+    browserSupport: \['modern', 'legacy'\],
+    compressionMode: 'adaptive',
+    stripMetadata: true
+  })
+  .addRename('{name}-{width}w-{date}');
+```
+
+### Example 2: Smart Portrait Cropping
+
+```
+const task \= new LemGendTask('Portrait Smart Crop');
+
+task
+  .addResize(1350, 'height')  // Portrait height
+  .addSmartCrop(1080, 1350, {
+    mode: 'face',
+    confidenceThreshold: 85,
+    preserveAspectRatio: true,
+    objectsToDetect: \['person', 'face'\]
+  })
+  .addOptimize(95, 'webp', {
+    preserveTransparency: false,
+    compressionMode: 'balanced'
+  });
+```
+
+### Example 3: Complete Favicon Generation
+
+```
+const task \= new LemGendTask('Favicon Package');
+
+task
+  // Prepare base image
+  .addResize(512, 'longest')
+  .addCrop(512, 512, 'smart', {
+    confidenceThreshold: 70,
+    cropToFit: true
+  })
+  // Generate favicon set
+  .addFavicon(
+    \[16, 32, 48, 64, 128, 180, 192, 256, 512\],
+    \['png', 'ico'\],
+    {
+      generateManifest: true,
+      generateHTML: true,
+      includeAppleTouch: true,
+      includeAndroid: true,
+      roundCorners: true,
+      backgroundColor: '#ffffff'
+    }
+  )
+  .addRename('favicon-{size}');
+```
+
+### Example 4: Template-Based Processing
+
+```
+import { processWithTemplate } from '@lemgenda/image-lemgendizer';
+
+const result \= await processWithTemplate(image, 'instagram-square', {
+  // Additional options
+  preserveOriginal: true
+});
+
+console.log(result);
+// {
+//   success: true,
+//   template: { id: 'instagram-square', ... },
+//   image: LemGendImage instance,
+//   file: Processed File object
+// }
+```
+
+## 📋 Available Templates
+
+The library includes 50+ pre-configured templates:
+
+### Social Media Templates
+
+-   `instagram-square` (1080×1080)
+
+-   `instagram-portrait` (1080×1350)
+
+-   `facebook-post` (1200×630)
+
+-   `twitter-header` (1500×500)
+
+-   `linkedin-post` (1200×627)
+
+-   `youtube-thumbnail` (1280×720)
+
+-   `pinterest-pin` (1000×1500)
+
+-   `tiktok-cover` (1080×1920)
+
+
+### Web Templates
+
+-   `web-hero` (1920×1080)
+
+-   `blog-featured` (1200×630)
+
+-   `web-thumbnail` (300×300)
+
+-   `web-card` (400×300)
+
+-   `open-graph` (1200×630)
+
+
+### Logo & Branding
+
+-   `logo-square` (500×500)
+
+-   `logo-rectangular` (300×150)
+
+-   `logo-print` (3000×3000)
+
+-   `social-profile` (400×400)
+
+
+### Favicon Templates
+
+-   `favicon-basic` (16×16)
+
+-   `favicon-modern` (180×180)
+
+-   `favicon-apple` (180×180)
+
+-   `favicon-android` (192×192)
+
+-   `favicon-complete` (Complete set)
+
+
+## 🛠️ Advanced Usage
+
+### Batch Processing with Progress
+
+```
+const results \= await lemGendaryProcessBatch(images, task, {
+  onProgress: (progress, current, total) \=> {
+    console.log(\`Processed ${current}/${total} images\`);
+    updateProgressBar(progress);
+  },
+  onWarning: (warning) \=> {
+    console.warn(\`Warning: ${warning.message}\`);
+  },
+  onError: (error, file) \=> {
+    console.error(\`Error processing ${file.name}:\`, error);
+  },
+  parallel: true,           // Enable parallel processing
+  maxParallel: 4            // Max 4 images at once
+});
+
+// results is array of: { image, file, success, error?, metadata }
+```
+
+### Custom Processor Usage
+
+```
+import {
+  getLemGendaryResize,
+  getLemGendaryCrop,
+  getLemGendaryOptimize
+} from '@lemgenda/image-lemgendizer';
+
+// Get processor classes
+const LemGendaryResize \= await getLemGendaryResize();
+const LemGendaryCrop \= await getLemGendaryCrop();
+const LemGendaryOptimize \= await getLemGendaryOptimize();
+
+// Use processors directly
+const resizeProcessor \= new LemGendaryResize({
+  dimension: 1024,
+  mode: 'longest',
+  algorithm: 'lanczos3'
+});
+
+const cropProcessor \= new LemGendaryCrop({
+  width: 500,
+  height: 500,
+  mode: 'smart',
+  confidenceThreshold: 70
+});
+
+const optimizeProcessor \= new LemGendaryOptimize({
+  quality: 85,
+  format: 'webp',
+  compressionMode: 'adaptive'
+});
+
+// Process image
+const resizeResult \= await resizeProcessor.process(image);
+const cropResult \= await cropProcessor.process(image, resizeResult.newDimensions);
+const optimizeResult \= await optimizeProcessor.process(image);
+```
+
+### ZIP Export
+
+```
+import { createLemGendaryZip } from '@lemgenda/image-lemgendizer';
+
+// Create organized ZIP from processed results
+const zipBlob \= await createLemGendaryZip(processedImages, {
+  mode: 'custom',
+  includeOriginal: true,
+  includeOptimized: true,
+  createFolders: true,
+  includeInfoFile: true,
+  zipName: 'my-processed-images'
+});
+
+// Download the ZIP
+const url \= URL.createObjectURL(zipBlob);
+const a \= document.createElement('a');
+a.href \= url;
+a.download \= 'processed-images.zip';
+a.click();
+URL.revokeObjectURL(url);
+```
+
+### Validation System
+
+```
+import {
+  validateImage,
+  validateTask,
+  ValidationErrors,
+  ValidationWarnings
+} from '@lemgenda/image-lemgendizer';
+
+// Validate image file
+const imageValidation \= validateImage(file, {
+  maxFileSize: 50 \* 1024 \* 1024, // 50MB
+  allowedTypes: \['image/jpeg', 'image/png', 'image/webp'\],
+  checkDimensions: true,
+  minDimensions: { width: 100, height: 100 }
+});
+
+if (!imageValidation.valid) {
+  console.error('Image validation failed:', imageValidation.errors);
+}
+
+// Validate task
+const taskValidation \= await validateTask(task, image);
+
+if (taskValidation.hasWarnings) {
+  taskValidation.warnings.forEach(warning \=> {
+    console.warn(\`${warning.severity}: ${warning.message}\`);
+  });
+}
+```
+
+## 📁 Project Structure
+
 ```
 core/
 ├── src/
 │   ├── processors/              # Processing modules
-│   │   ├── index.js
-│   │   ├── LemGendaryResize.js
-│   │   ├── LemGendaryCrop.js
-│   │   ├── LemGendaryOptimize.js
-│   │   └── LemGendaryRename.js
-│   ├── templates/              # Template system
-│   │   ├── index.js
-│   │   ├── favicon.js
-│   │   ├── social.js
-│   │   ├── web.js
-│   │   └── logo.js
-│   ├── tasks/                  # Task pipeline
-│   │   └── LemGendTask.js
-│   ├── utils/                  # Utilities
-│   │   ├── index.js
-│   │   ├── zipUtils.js
-│   │   ├── imageUtils.js
-│   │   ├── stringUtils.js
-│   │   ├── processingUtils.js
-│   │   └── validationUtils.js
-│   ├── LemGendImage.js          # Core image class
-│   ├── main.js
-│   ├── build.js
-│   └── index.js
-├── tests/                   # Test folder inside core
-│   ├── processors/
-│   │   ├── LemGendaryResize.test.js
-│   │   ├── LemGendaryCrop.test.js
-│   │   ├── LemGendaryOptimize.test.js
-│   │   └── LemGendaryRename.test.js
-│   ├── utils/
-│   │   ├── zipUtils.test.js
-│   │   ├── imageUtils.test.js
-│   │   └── validation.test.js
-│   ├── mocks/
-│   │   ├── fileMock.js
-│   │   ├── imageMock.js
-│   │   └── canvasMock.js
-│   ├── setup.js
-│   └── helpers.js               # Main entry point
-├── package.json
-├── vite.config.js
-├── vitest.config.js
-└── README.md
+│   │   ├── LemGendaryResize.js   # Intelligent resizing
+│   │   ├── LemGendaryCrop.js     # AI-powered cropping
+│   │   ├── LemGendaryOptimize.js # Advanced optimization
+│   │   └── LemGendaryRename.js   # Batch renaming
+│   ├── templates/               # Template system
+│   │   └── templateConfig.js    # 50+ pre-configured templates
+│   ├── tasks/                   # Task pipeline
+│   │   └── LemGendTask.js       # Unified processing pipeline
+│   ├── utils/                   # Utilities
+│   │   ├── zipUtils.js          # ZIP creation/extraction
+│   │   ├── imageUtils.js        # Image manipulation helpers
+│   │   ├── stringUtils.js       # String/pattern utilities
+│   │   ├── sharedUtils.js       # Shared helper functions
+│   │   ├── templateUtils.js     # Template utilities
+│   │   ├── processingUtils.js   # Processing pipeline utilities
+│   │   └── validationUtils.js   # Comprehensive validation
+│   ├── LemGendImage.js          # Core image representation class
+│   └── index.js                 # Main entry point
 ```
 
-## Features
+## 🔌 API Reference
 
-### Intelligent Processing
-- **LemGendaryResize™** - Smart dimension selection based on orientation
-- **LemGendaryCrop™** - Precise cropping with multiple position options
-- **LemGendaryOptimize™** - Format conversion with quality optimization
-- **LemGendaryRename™** - Pattern-based batch renaming
+### Core Functions
 
-### Template System
-- 40+ pre-configured templates for social media, web, and logos
-- Platform-specific dimensions (Instagram, Facebook, Twitter, etc.)
-- Custom template support
-- Automatic aspect ratio matching
+| Function | Description |
+| --- | --- |
+| `lemGendaryProcessBatch()` | Main batch processing function |
+| `processWithTemplate()` | Process image using template |
+| `processFlexibleTemplate()` | Process with flexible dimension template |
+| `processFaviconSet()` | Generate favicon set |
+| `getLibraryInfo()` | Get library version and info |
+| `getAllProcessors()` | Get all processor classes at once |
 
-### Core Capabilities
-- **Client-side processing** - No server required, complete privacy
-- **Batch operations** - Process multiple images simultaneously
-- **ZIP export** - Organized folder structure with metadata
-- **Validation & warnings** - Real-time feedback and suggestions
-- **Progress tracking** - Built-in progress reporting
+### Class Getters (Dynamically Imported)
 
-### New Features
-- **Complete Favicon Generation**: 9 favicon templates for all devices
-- **Favicon-Aware Processors**: Intelligent resizing/cropping for icons
-- **Batch Favicon Sets**: Generate multiple sizes at once
-- **ICO Format Support**: Native .ico file optimization
-- **Organized ZIP Export**: Dedicated favicon folder structure
+| Function | Returns | Description |
+| --- | --- | --- |
+| `getLemGendTask()` | `LemGendTask` | Unified processing pipeline |
+| `getLemGendImage()` | `LemGendImage` | Core image representation |
+| `getLemGendaryResize()` | `LemGendaryResize` | Intelligent resizing processor |
+| `getLemGendaryCrop()` | `LemGendaryCrop` | AI-powered cropping processor |
+| `getLemGendaryOptimize()` | `LemGendaryOptimize` | Advanced optimization processor |
+| `getLemGendaryRename()` | `LemGendaryRename` | Batch renaming processor |
 
-### Format Support
-- **Input**: JPEG, PNG, WebP, GIF, SVG, BMP, TIFF, AVIF
-- **Output**: WebP, JPEG, PNG, AVIF (browser-dependent)
-- **Vector support**: SVG processing with raster conversion
-
-## Performance
-
-The library is optimized for performance:
-- **Web Workers**: Heavy operations run off the main thread
-- **Lazy Loading**: Processors load only when needed
-- **Memory Efficient**: Automatic cleanup of object URLs
-- **Batch Optimization**: Parallel processing for large batches
-
-## Security
-
-- **No Server Uploads**: All processing happens in the browser
-- **No External APIs**: No data leaves the user's device
-- **Input Validation**: All files are validated before processing
-- **XSS Protection**: Sanitized filename handling
-
-Report security issues to: security@lemgenda.com
-
-## Installation
-
-```
-npm install @lemgenda/image-lemgendizer
-# or
-yarn add @lemgenda/image-lemgendizer
-# or
-pnpm add @lemgenda/image-lemgendizer
-```
-## Migration from v1.x
-
-Version 2.0 includes breaking changes:
-- Processor APIs are now promise-based
-- Template system completely redesigned
-- Improved error handling and validation
-- See [MIGRATION.md](MIGRATION.md) for details
-
-## Quick Start
-### Basic Usage
-#### Simple Web Image Optimization
-```
-import { LemGendTask, lemGendaryProcessBatch } from '@lemgenda/image-lemgendizer'
-
-// Create a task for web optimization
-const task = new LemGendTask('Web Images')
-  .addResize(1920, 'longest')  // Resize to max 1920px (preserve aspect ratio)
-  .addOptimize(85, 'webp')     // Convert to WebP at 85% quality
-  .addRename('{name}-optimized')
-
-// Process files
-const files = [...] // Array of File objects from file input
-const results = await lemGendaryProcessBatch(files, task, {
-  onProgress: (progress, current, total) => {
-    console.log(`Processing: ${current}/${total} (${Math.round(progress * 100)}%)`)
-  }
-})
-
-// Download each processed image
-results.forEach(result => {
-  if (result.success) {
-    const url = URL.createObjectURL(result.file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = result.file.name
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-})
-```
-#### Batch Processing with ZIP Download
-```
-import { lemGendaryProcessBatch, lemGendBuildZip } from '@lemgenda/image-lemgendizer'
-
-// Create a comprehensive processing pipeline
-const task = new LemGendTask('Social Media Package')
-  .addResize(1200, 'longest')         // Resize for social media
-  .addSmartCrop(1080, 1080, {         // AI-powered smart cropping
-    confidenceThreshold: 70,
-    multipleFaces: true
-  })
-  .addWebOptimization({              // Web-optimized compression
-    quality: 90,
-    format: 'auto'
-  })
-  .addRename('social-post-{timestamp}')
-
-// Process images
-const results = await lemGendaryProcessBatch(files, task)
-
-// Create ZIP archive
-const zipBlob = await lemGendBuildZip(results, {
-  zipName: 'social-media-posts.zip',
-  createFolders: true,
-  includeInfoFile: true
-})
-
-// Download ZIP
-downloadBlob(zipBlob, 'social-media-posts.zip')
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
-```
-### Using Templates
-#### Template-Based Processing
-```
-import {
-  getTemplatesByPlatform,
-  getRecommendedTemplates,
-  processWithTemplate
-} from '@lemgenda/image-lemgendizer'
-
-// Get all Instagram templates
-const instagramTemplates = getTemplatesByPlatform('instagram')
-console.log('Instagram templates:', instagramTemplates)
-
-// Get recommended templates for an image
-const imageFile = event.target.files[0]
-const image = new LemGendImage(imageFile)
-await image.load()
-
-const recommended = getRecommendedTemplates(image, {
-  category: 'social',
-  minMatchScore: 0.7
-})
-
-// Process using a specific template
-const result = await processWithTemplate(image, 'instagram-square', {
-  quality: 90,
-  compressionMode: 'balanced'
-})
-
-if (result.success) {
-  // Download the processed image
-  downloadFile(result.file, result.file.name)
-}
-```
-#### Social Media Profile Pictures
-```
-import { LemGendTemplates, getTemplateById } from '@lemgenda/image-lemgendizer'
-
-// Create task for social media profile pictures
-const task = new LemGendTask('Profile Pictures')
-  .addResize(400, 'longest')          // Resize to platform requirements
-  .addCrop(400, 400, 'smart', {       // Smart crop for faces
-    confidenceThreshold: 75,
-    preserveAspectRatio: true
-  })
-  .addOptimize(90, 'png', {          // PNG for transparency support
-    preserveTransparency: true
-  })
-  .addRename('profile-{name}-{dimensions}')
-
-// Or use template shortcuts
-const profileTask = LemGendTask.fromTemplate('social-media')
-```
-### Advanced Features
-#### AI-Powered Smart Cropping
-```
-// Face detection cropping
-const faceCropTask = new LemGendTask('Portrait Cropping')
-  .addResize(1080, 'longest')
-  .addSmartCrop(1080, 1350, {
-    mode: 'face',                    // AI face detection
-    confidenceThreshold: 80,         // Require high confidence
-    multipleFaces: false,           // Focus on single face
-    cropToFit: true
-  })
-  .addOptimize(95, 'auto')          // Auto-format selection
-```
-#### Favicon Generation
-```
-import { processFaviconSet } from '@lemgenda/image-lemgendizer'
-
-// Generate complete favicon package
-const faviconResults = await processFaviconSet(logoFile, {
-  sizes: [16, 32, 48, 64, 128, 180, 192, 256, 512],
-  formats: ['png', 'ico'],
-  includeManifest: true,
-  includeHTML: true,
-  roundCorners: true
-})
-
-// Create ZIP with all favicon files
-const faviconBlob = await createOptimizedZip(faviconResults, {
-  zipName: 'favicon-package.zip'
-})
-```
-#### Flexible Dimension Templates
-```
-import { getFlexibleTemplates, processFlexibleTemplate } from '@lemgenda/image-lemgendizer'
-
-// Get templates with flexible dimensions
-const flexibleTemplates = getFlexibleTemplates()
-
-// Process with flexible template
-const flexibleResult = await processFlexibleTemplate(image, flexibleTemplates[0], {
-  quality: 85,
-  format: 'webp'
-})
-```
-### UI Integration Examples
-#### Drag & Drop File Upload
-```
-import { validateImage, batchProcess } from '@lemgenda/image-lemgendizer'
-
-// Setup drag & drop area
-const dropArea = document.getElementById('drop-area')
-
-dropArea.addEventListener('dragover', (e) => {
-  e.preventDefault()
-  dropArea.classList.add('drag-over')
-})
-
-dropArea.addEventListener('dragleave', () => {
-  dropArea.classList.remove('drag-over')
-})
-
-dropArea.addEventListener('drop', async (e) => {
-  e.preventDefault()
-  dropArea.classList.remove('drag-over')
-
-  const files = Array.from(e.dataTransfer.files)
-
-  // Validate files
-  const validFiles = files.filter(file => {
-    const validation = validateImage(file, {
-      maxFileSize: 50 * 1024 * 1024, // 50MB
-      allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    })
-    return validation.valid
-  })
-
-  // Process valid files
-  if (validFiles.length > 0) {
-    await processFiles(validFiles)
-  }
-})
-```
-#### Progress Bar Implementation
-```
-import { lemGendaryProcessBatch } from '@lemgenda/image-lemgendizer'
-
-// Create progress UI
-const progressBar = document.getElementById('progress-bar')
-const progressText = document.getElementById('progress-text')
-const statusText = document.getElementById('status-text')
-
-async function processWithProgress(files, task) {
-  let processedCount = 0
-
-  const results = await lemGendaryProcessBatch(files, task, {
-    onProgress: (progress, current, total) => {
-      processedCount = current
-      progressBar.style.width = `${progress * 100}%`
-      progressText.textContent = `${current}/${total}`
-      statusText.textContent = `Processing ${current} of ${total}...`
-    },
-    onWarning: (warning) => {
-      console.warn('Processing warning:', warning)
-      // Show warning to user
-      showNotification(warning.message, 'warning')
-    }
-  })
-
-  // Update UI with results
-  const successful = results.filter(r => r.success).length
-  statusText.textContent = `Complete! ${successful}/${files.length} processed successfully`
-
-  return results
-}
-```
-#### Preview Before Processing
-```
-import { LemGendImage, getImageDimensions, createThumbnail } from '@lemgenda/image-lemgendizer'
-
-// Preview uploaded images
-async function previewFiles(files) {
-  const previewContainer = document.getElementById('preview-container')
-  previewContainer.innerHTML = ''
-
-  for (const file of files) {
-    // Create thumbnail
-    const thumbnail = await createThumbnail(file, 200, 200)
-
-    // Get dimensions
-    const dimensions = await getImageDimensions(file)
-
-    // Create preview element
-    const preview = document.createElement('div')
-    preview.className = 'image-preview'
-    preview.innerHTML = `
-      <img src="${URL.createObjectURL(thumbnail)}" alt="${file.name}">
-      <div class="image-info">
-        <div>${file.name}</div>
-        <div>${dimensions.width} × ${dimensions.height}</div>
-        <div>${formatFileSize(file.size)}</div>
-      </div>
-    `
-
-    previewContainer.appendChild(preview)
-  }
-}
-```
-### Template Examples
-#### Instagram Content Creator
-```
-// Create Instagram content in multiple formats
-const instagramTask = new LemGendTask('Instagram Content')
-  // Square post
-  .addResize(1080, 'longest')
-  .addCrop(1080, 1080, 'smart', {
-    objectsToDetect: ['person', 'face', 'product']
-  })
-  .addOptimize(92, 'jpg')
-  .addRename('instagram-square-{timestamp}')
-
-  // Story post (separate output)
-  .addResize(1080, 'height')
-  .addCrop(1080, 1920, 'smart')
-  .addOptimize(90, 'jpg')
-  .addRename('instagram-story-{timestamp}')
-```
-#### E-commerce Product Images
-```
-const productTask = new LemGendTask('Product Images')
-  // Main product image
-  .addResize(1200, 'longest')
-  .addCrop(1200, 1200, 'object', {
-    objectsToDetect: ['product', 'item'],
-    confidenceThreshold: 75
-  })
-  .addOptimize(88, 'webp')
-  .addRename('product-main-{index}')
-
-  // Thumbnail
-  .addResize(300, 'longest')
-  .addCrop(300, 300, 'center')
-  .addOptimize(80, 'webp')
-  .addRename('product-thumb-{index}')
-```
-#### Blog Post Images
-```
-const blogTask = new LemGendTask('Blog Images')
-  .addResize(1200, 'width')           // Fixed width, flexible height
-  .addOptimize(85, 'webp', {
-    preserveTransparency: true,
-    compressionMode: 'adaptive'
-  })
-  .addRename('blog-{name}-{width}w')
-```
-### Error Handling
-#### Robust Error Handling
-```
-try {
-  const task = new LemGendTask('Optimization')
-    .addResize(1920, 'longest')
-    .addOptimize(85, 'webp')
-
-  // Validate task first
-  const validation = await task.validate()
-
-  if (!validation.isValid) {
-    console.error('Task validation errors:', validation.errors)
-    // Show errors to user
-    validation.errors.forEach(error => {
-      showError(`Task error: ${error.message}`)
-    })
-    return
-  }
-
-  if (validation.hasWarnings) {
-    validation.warnings.forEach(warning => {
-      console.warn('Task warning:', warning)
-      // Show warnings to user
-      showWarning(`Warning: ${warning.message}`)
-    })
-  }
-
-  // Process with error handling
-  const results = await lemGendaryProcessBatch(files, task, {
-    onError: (error, file) => {
-      console.error(`Failed to process ${file.name}:`, error)
-      showError(`Failed to process ${file.name}: ${error.message}`)
-    }
-  })
-
-  // Check results
-  const failed = results.filter(r => !r.success)
-  if (failed.length > 0) {
-    console.warn(`${failed.length} files failed to process`)
-    // Offer to retry failed files
-  }
-
-} catch (error) {
-  console.error('Processing failed:', error)
-  showError(`Processing failed: ${error.message}`)
-}
-```
 ### Utility Functions
+
 #### Image Utilities
+
 ```
 import {
-  hasTransparency,
-  calculateAspectRatioFit,
+  getImageDimensions,
   formatFileSize,
-  fileToDataURL
-} from '@lemgenda/image-lemgendizer'
-
-// Check image properties
-const hasAlpha = await hasTransparency(imageFile)
-console.log('Has transparency:', hasAlpha)
-
-// Calculate resize dimensions
-const targetSize = { width: 800, height: 600 }
-const fitted = calculateAspectRatioFit(
-  originalWidth,
-  originalHeight,
-  targetSize.width,
-  targetSize.height
-)
-
-// Format file size for display
-const sizeStr = formatFileSize(file.size) // "2.5 MB"
-
-// Convert file to data URL for preview
-const dataURL = await fileToDataURL(file)
+  createThumbnail,
+  analyzeForOptimization,
+  resizeImage,
+  cropImage,
+  validateImageFile
+} from '@lemgenda/image-lemgendizer';
 ```
+
 #### ZIP Utilities
+
 ```
 import {
+  createLemGendaryZip,
   createSimpleZip,
   extractZip,
-  getZipInfo
-} from '@lemgenda/image-lemgendizer'
-
-// Create simple ZIP
-const simpleZip = await createSimpleZip(files, 'images.zip')
-
-// Extract ZIP contents
-const extracted = await extractZip(zipFile)
-
-// Get ZIP information
-const zipInfo = await getZipInfo(zipFile)
-console.log('ZIP contains:', zipInfo.files.length, 'files')
+  getZipInfo,
+  createOptimizedZip
+} from '@lemgenda/image-lemgendizer';
 ```
 
-## Troubleshooting
+#### Template Utilities
 
-### Common Issues
-
-1. **"Canvas operations are blocked"**
-   - Solution: Ensure images are served with proper CORS headers
-
-2. **"AVIF format not supported"**
-   - Solution: Use `format: 'auto'` or check browser compatibility
-
-3. **"File too large"**
-   - Solution: Increase `maxFileSize` option or pre-process large files
-
-4. **"Memory issues with batch processing"**
-   - Solution: Use `parallel: false` or reduce `maxParallel` value
-
-### Best Practices
-
-1. Always validate tasks before processing
-2. Use templates for common use cases
-3. Implement progress indicators for batch operations
-4. Handle errors gracefully with user feedback
-5. Use appropriate compression based on image type
-6. Consider browser support when choosing formats
-7. Preview images before processing
-8. Offer ZIP download for batch outputs
-9. Use AI cropping for portraits and products
-10. Test with various image types and sizes
-
-## Template Reference
-
-### Social Media Templates (35 Templates)
-
-#### Instagram (5 Templates)
-| Template             | Display Name     | Dimensions | Aspect Ratio | Recommended Formats |
-|----------------------|------------------|------------|--------------|---------------------|
-| instagram-profile    | Profile Picture  | 320×320    | 1:1          | JPG, WebP           |
-| instagram-square     | Square Post      | 1080×1080  | 1:1          | JPG, WebP           |
-| instagram-portrait   | Portrait Post    | 1080×1350  | 4:5          | JPG, WebP           |
-| instagram-landscape  | Landscape Post   | 1080×566   | 1.91:1       | JPG, WebP           |
-| instagram-stories    | Stories & Reels  | 1080×1920  | 9:16         | JPG, WebP           |
-
-#### Facebook (5 Templates)
-| Template           | Display Name   | Dimensions | Aspect Ratio | Recommended Formats |
-|--------------------|----------------|------------|--------------|---------------------|
-| facebook-profile   | Profile Picture| 180×180    | 1:1          | JPG, PNG            |
-| facebook-cover     | Cover Photo    | 851×315    | ~2.7:1       | JPG, PNG            |
-| facebook-shared    | Shared Image   | 1200×630   | 1.91:1       | JPG, PNG            |
-| facebook-square    | Square Post    | 1200×1200  | 1:1          | JPG, PNG            |
-| facebook-stories   | Stories        | 1080×1920  | 9:16         | JPG, PNG            |
-
-#### Twitter / X (5 Templates)
-| Template           | Display Name     | Dimensions | Aspect Ratio | Recommended Formats |
-|--------------------|------------------|------------|--------------|---------------------|
-| twitter-profile    | Profile Picture  | 400×400    | 1:1          | JPG, PNG            |
-| twitter-header     | Header Banner    | 1500×500   | 3:1          | JPG, PNG            |
-| twitter-landscape  | Landscape Post   | 1600×900   | 16:9         | JPG, PNG            |
-| twitter-square     | Square Post      | 1080×1080  | 1:1          | JPG, PNG            |
-| twitter-portrait   | Portrait Post    | 1080×1350  | 4:5          | JPG, PNG            |
-
-#### LinkedIn (5 Templates)
-| Template           | Display Name        | Dimensions | Aspect Ratio | Recommended Formats |
-|--------------------|---------------------|------------|--------------|---------------------|
-| linkedin-profile   | Profile Picture     | 400×400    | 1:1          | JPG, PNG            |
-| linkedin-cover     | Personal Cover Photo| 1584×396   | 4:1          | JPG, PNG            |
-| linkedin-landscape | Landscape Post      | 1200×627   | 1.91:1       | JPG, PNG            |
-| linkedin-square    | Square Post         | 1200×1200  | 1:1          | JPG, PNG            |
-| linkedin-portrait  | Portrait Post       | 720×900    | 4:5          | JPG, PNG            |
-
-#### YouTube (3 Templates)
-| Template           | Display Name    | Dimensions | Aspect Ratio | Recommended Formats |
-|--------------------|-----------------|------------|--------------|---------------------|
-| youtube-channel    | Channel Icon    | 800×800    | 1:1          | JPG, PNG            |
-| youtube-banner     | Channel Banner  | 2048×1152  | 16:9         | JPG, PNG            |
-| youtube-thumbnail  | Video Thumbnail | 1280×720   | 16:9         | JPG, PNG            |
-
-#### Pinterest (4 Templates)
-| Template            | Display Name   | Dimensions | Aspect Ratio | Recommended Formats |
-|---------------------|----------------|------------|--------------|---------------------|
-| pinterest-profile   | Profile Picture| 165×165    | 1:1          | JPG, PNG            |
-| pinterest-standard  | Standard Pin   | 1000×1500  | 2:3          | JPG, PNG            |
-| pinterest-square    | Square Pin     | 1000×1000  | 1:1          | JPG, PNG            |
-| pinterest-story     | Story Pin      | 1080×1920  | 9:16         | JPG, PNG            |
-
-#### TikTok (2 Templates)
-| Template         | Display Name   | Dimensions | Aspect Ratio | Recommended Formats |
-|------------------|----------------|------------|--------------|---------------------|
-| tiktok-profile   | Profile Picture| 200×200    | 1:1          | JPG, PNG            |
-| tiktok-video     | Video Cover    | 1080×1920  | 9:16         | JPG, PNG            |
-
----
-
-### Web Templates (6 Templates)
-| Template     | Display Name       | Dimensions   | Aspect Ratio | Recommended Formats | Use Case                   |
-|--------------|--------------------|--------------|--------------|---------------------|----------------------------|
-| web-hero     | Hero Banner        | 1920×1080    | 16:9         | WebP, JPG           | Full-width website hero    |
-| web-blog     | Blog Featured Image| 1200×630     | 1.91:1       | WebP, JPG           | Blog post featured images  |
-| web-content  | Content Image      | 1200×auto    | Variable     | WebP, JPG, PNG      | Article content images     |
-| web-thumb    | Thumbnail          | 300×300      | 1:1          | WebP, JPG           | Gallery/product thumbnails |
-| web-card     | Card Image         | 400×300      | 4:3          | WebP, JPG           | Feature/product cards      |
-| web-og       | Open Graph Image   | 1200×630     | 1.91:1       | JPG, PNG            | Social sharing previews    |
-
----
-
-### Logo Templates (5 Templates)
-| Template          | Display Name     | Dimensions | Aspect Ratio | Recommended Formats | Use Case                        |
-|-------------------|------------------|------------|--------------|---------------------|---------------------------------|
-| logo-rectangular  | Rectangular Logo | 300×150    | 2:1          | PNG, SVG            | Website headers, email signatures|
-| logo-square       | Square Logo      | 500×500    | 1:1          | PNG, SVG            | Social media, app icons         |
-| logo-print        | Print-Ready Logo | 3000×3000  | 1:1          | PNG, SVG, PDF, EPS  | Business cards, merchandise     |
-| logo-watermark    | Watermark        | 1000×400   | 2.5:1        | PNG                 | Photo overlays                  |
-| logo-vertical     | Vertical Logo    | 500×800    | 5:8          | PNG, SVG            | Mobile apps, documentation      |
-
----
-
-### Favicon Templates (9 Templates) - NEW!
-| Template          | Display Name        | Dimensions | Aspect Ratio | Recommended Formats | Use Case                  |
-|-------------------|---------------------|------------|--------------|---------------------|---------------------------|
-| favicon-basic     | Basic Favicon       | 16×16      | 1:1          | ICO, PNG            | Standard browser tab icon |
-| favicon-standard  | Standard Favicon Set| 32×32      | 1:1          | ICO                 | Desktop browsers          |
-| favicon-modern    | Modern Favicon Set  | 180×180    | 1:1          | PNG, SVG            | All modern devices        |
-| favicon-apple     | Apple Touch Icon    | 180×180    | 1:1          | PNG                 | iOS home screen           |
-| favicon-android   | Android Chrome Icon | 192×192    | 1:1          | PNG                 | Android home screen       |
-| favicon-safari    | Safari Pinned Tab   | 16×16      | 1:1          | SVG                 | Safari pinned tabs        |
-| favicon-windows   | Windows Tile        | 144×144    | 1:1          | PNG                 | Windows start menu        |
-| favicon-retina    | Retina Favicon      | 64×64      | 1:1          | PNG, ICO            | High-DPI/Retina displays  |
-| favicon-complete  | Complete Package    | all        | 1:1          | ICO, PNG, SVG       | All devices and sizes     |
-
-### Template Categories Summary
-| Category     | Number of Templates | Platforms Covered                                                                |
-|--------------|---------------------|----------------------------------------------------------------------------------|
-| Social Media | 35                  | Instagram (5), Facebook (5), Twitter/X (5), LinkedIn (5), YouTube (3), Pinterest (4), TikTok (2) |
-| Web          | 7                   | Hero, Blog, Content, Thumbnail, Card, Logo, Open Graph                           |
-| Logo         | 5                  | Rectangular, Square, App Icon, Social, Print, Watermark, Vertical, Favicon Set, Icon Only |
-| Favicon      | 9                   | Basic, Standard, Modern, Apple, Android, Safari, Windows, Complete, Retina       |
-| **TOTAL**    | **60 Templates**    | All major platforms and use cases                                                |
-
-### Common Aspect Ratios
-| Aspect Ratio | Common Use                  | Templates |
-|--------------|-----------------------------|-----------|
-| 1:1 (Square) | Profile pictures, icons, logos | 28        |
-| 4:5 (Portrait)| Social media portrait posts | 3         |
-| 16:9 (Landscape)| YouTube, hero banners     | 4         |
-| 9:16 (Vertical)| Stories, Reels, TikTok     | 5         |
-| 1.91:1       | Open Graph, shared links    | 5         |
-| 2:1          | Rectangular logos           | 1         |
-| 3:1          | Twitter headers             | 1         |
-| 4:3          | Card images                 | 1         |
-
-### File Format Recommendations
-| Format | Best For                     | Transparency | Compression |
-|--------|------------------------------|--------------|-------------|
-| PNG    | Logos, graphics with transparency | ✅ Yes      | Lossless    |
-| JPG    | Photos, complex images       | ❌ No        | Lossy       |
-| WebP   | Web images, modern browsers  | ✅ Yes       | Excellent   |
-| SVG    | Logos, icons, vectors        | ✅ Yes       | Vector      |
-| ICO    | Favicons, Windows icons      | ✅ Yes       | Multi-size  |
-| PDF    | Print-ready logos            | ✅ Yes       | Vector      |
-| EPS    | Professional printing        | ✅ Yes       | Vector      |
-
----
-
-### Quick Reference by Size
-| Size Category | Dimensions Range     | Common Use                          |
-|---------------|----------------------|-------------------------------------|
-| Tiny          | 16×16 to 48×48       | Favicons, small icons               |
-| Small         | 50×50 to 200×200     | Thumbnails, UI elements             |
-| Medium        | 300×300 to 800×800   | Profile pictures, logos             |
-| Large         | 1000×1000 to 2000×2000 | Social media posts, web images    |
-| Extra Large   | 2000×2000+           | Print, high-resolution assets       |
-
-## Browser Compatibility
-
-| Browser | Version | Features Supported |
-|---------|---------|-------------------|
-| Chrome  | 58+     | ✅ All features including WebP, AVIF |
-| Firefox | 65+     | ✅ All features including WebP |
-| Safari  | 14+     | ✅ Most features (limited AVIF support) |
-| Edge    | 79+     | ✅ All Chromium-based features |
-
-## Build & Development
-### Building from Source
 ```
-# Clone repository
-git clone https://github.com/lemgenda/image-lemgendizer-core.git
-cd image-lemgendizer-core
-
-# Install dependencies
-npm install
-
-# Build library
-npm run build
-
-# Run tests
-npm test
-
-# Development mode
-npm run dev
+import {
+  getTemplateById,
+  validateTemplateCompatibility,
+  getTemplateStats,
+  getFlexibleTemplates
+} from '@lemgenda/image-lemgendizer';
 ```
 
-## License
+#### Validation Utilities
+
+```
+import {
+  validateTask,
+  validateImage,
+  validateResizeOptions,
+  validateCropOptions,
+  validateOptimizationOptions,
+  ValidationErrors,
+  ValidationWarnings
+} from '@lemgenda/image-lemgendizer';
+```
+
+## ⚙️ Configuration
+
+### Vite Configuration (for building)
+
+```
+// vite.config.js
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+
+export default defineConfig({
+  build: {
+    lib: {
+      entry: resolve(\_\_dirname, 'src/index.js'),
+      formats: \['es', 'cjs'\],
+      fileName: (format) \=> format \=== 'es' ? 'index.es.js' : 'index.cjs.js'
+    },
+    rollupOptions: {
+      external: \['jszip'\]
+    },
+    sourcemap: true
+  }
+});
+```
+
+### Package Configuration
+
+```
+{
+  "name": "@lemgenda/image-lemgendizer",
+  "version": "3.0.0",
+  "type": "module",
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs.js"
+    },
+    "./utils": "./dist/utils/index.js",
+    "./processors": "./dist/processors/index.js",
+    "./templates": "./dist/templates/index.js",
+    "./LemGendImage": "./dist/LemGendImage.js",
+    "./LemGendTask": "./dist/tasks/LemGendTask.js"
+  }
+}
+```
+
+## 📊 Performance Tips
+
+1.  Enable Parallel Processing: Use `parallel: true` for batch processing
+
+2.  Use Appropriate Quality: 85% quality often provides best size/quality balance
+
+3.  Resize Before Optimizing: Reduce dimensions before compression
+
+4.  Use WebP/AVIF: Modern formats offer better compression
+
+5.  Validate Early: Validate images and tasks before processing
+
+6.  Clean Up Resources: Call `image.destroy()` when done with images
+
+7.  Use Thumbnails: Use `createThumbnail()` for previews instead of full images
+
+
+## 🧪 Testing
+
+```
+// Example test for image processing
+import { getLemGendTask, getLemGendImage } from '@lemgenda/image-lemgendizer';
+
+describe('Image Processing', () \=> {
+  test('should resize and optimize image', async () \=> {
+    const LemGendTask \= await getLemGendTask();
+    const LemGendImage \= await getLemGendImage();
+
+    const task \= new LemGendTask('Test Task');
+    task.addResize(800, 'longest').addOptimize(85, 'webp');
+
+    const image \= new LemGendImage(testFile);
+    await image.load();
+
+    const validation \= await task.validate(image);
+    expect(validation.isValid).toBe(true);
+  });
+});
+```
+
+## 🤝 Contributing
+
+1.  Fork the repository
+
+2.  Create a feature branch: `git checkout -b feature/new-feature`
+
+3.  Make your changes
+
+4.  Run tests: `npm test`
+
+5.  Commit changes: `git commit -am 'Add new feature'`
+
+6.  Push to branch: `git push origin feature/new-feature`
+
+7.  Submit a Pull Request
+
+
+## 📄 License
 
 MIT © LemGenda
 
-## Acknowledgments
+## 📞 Support
 
-- Built with modern web standards
-- Inspired by real-world image processing needs
-- Thanks to all contributors and users
+-   GitHub Issues: [Report bugs or request features](https://github.com/lemgenda/image-lemgendizer-core/issues)
 
-## Contributing
+-   Documentation: [Full API documentation](https://github.com/lemgenda/image-lemgendizer-core)
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+-   Examples: [Example projects](https://github.com/lemgenda/image-lemgendizer-examples)
 
-1.  Fork the repository
-2.  Create your feature branch
-    (`git checkout -b feature/AmazingFeature`)
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
 
-## Support
+## 🌟 Features in Detail
 
--   Documentation
--   Issue Tracker
--   Discussions
+### Intelligent Cropping Modes
 
-# Features in Development
-[ ]  Localization (en, hr)
-[ ]  Watermark
-[ ]  Advanced color correction
-[ ]  Filters (B&W, Greyscale, Sephia...)
-[ ]  AI-powered Image Enhancement
-[ ]  AI-powered Image Tracer
-[ ]  AI-powered Background remove
-[ ]  AI-powered Background replace
-[ ]  AI-powered Background blur
-[ ]  AI-powered Object eraser
-[ ]  AI-powered Effects (Shadow, Duotone, Blur, Vignette, Auto Focus, Face Retouch)
-[ ]  Plugin system for custom processors
+-   `smart`: AI-powered content-aware cropping
 
-## Roadmap
+-   `face`: Face detection and centering
 
-### v3.0 (Q3 2026)
-- [ ] WebAssembly integration for faster processing
-- [ ] Service Worker support for offline processing
-- [ ] Advanced image analysis and auto-tagging
+-   `object`: Object detection (person, car, animal, etc.)
 
-### v2.3 (Next release)
-- [ ] Localization support (en, hr)
-- [ ] Watermark processor
-- [ ] Basic color correction tools
+-   `saliency`: Visual attention/saliency detection
+
+-   `entropy`: Information-rich area detection
+
+-   `center`: Simple center crop
+
+-   Positional: `top`, `bottom`, `left`, `right`, corner crops
+
+
+### Optimization Features
+
+-   Format Selection: Auto-selects best format (WebP, AVIF, JPEG, PNG)
+
+-   Adaptive Compression: Adjusts compression based on content
+
+-   Browser Support: Modern and legacy browser targeting
+
+-   Transparency Preservation: Maintains alpha channels when needed
+
+-   Metadata Stripping: Removes EXIF and other metadata
+
+-   Content Analysis: Analyzes image for optimal settings
+
+
+### Template System
+
+-   50+ Pre-configured Templates: Social media, web, print, logos, favicons
+
+-   Flexible Dimensions: Variable width/height support
+
+-   Category Organization: Web, Social, Logo, Favicon, Ecommerce, Print
+
+-   Validation: Template compatibility checking
+
+-   Statistics: Template usage and dimension analysis
+
+
+### Validation System
+
+-   Image Validation: File type, size, dimensions, transparency
+
+-   Task Validation: Step order, compatibility, logic errors
+
+-   Template Validation: Dimension matching, aspect ratios
+
+-   Warning System: Non-blocking warnings with suggestions
+
+-   Error System: Blocking errors with detailed messages
+
+
+* * *
+
+Built with ❤️ by LemGenda

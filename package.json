@@ -1,42 +1,56 @@
 {
     "name": "@lemgenda/image-lemgendizer",
-    "version": "2.2.1",
-    "description": "Client-side batch image processing library",
+    "version": "3.0.0",
+    "description": "Client-side batch image processing library with intelligent operations, AI-powered smart cropping, and advanced optimization",
     "type": "module",
     "main": "./dist/index.cjs.js",
     "module": "./dist/index.es.js",
+    "types": "./dist/index.d.ts",
     "exports": {
         ".": {
             "import": "./dist/index.es.js",
             "require": "./dist/index.cjs.js"
         },
-        "./utils": {
-            "import": "./dist/utils/index.js",
-            "require": "./dist/utils/index.cjs.js"
-        },
-        "./processors": {
-            "import": "./dist/processors/index.js",
-            "require": "./dist/processors/index.cjs.js"
-        },
-        "./templates": {
-            "import": "./dist/templates/index.js",
-            "require": "./dist/templates/index.cjs.js"
-        }
+        "./utils": "./dist/utils/index.js",
+        "./utils/shared": "./dist/utils/sharedUtils.js",
+        "./processors": "./dist/processors/index.js",
+        "./templates": "./dist/templates/index.js",
+        "./LemGendImage": "./dist/LemGendImage.js",
+        "./LemGendTask": "./dist/tasks/LemGendTask.js"
     },
     "files": [
         "dist",
-        "README.md"
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md"
     ],
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "clean": "rimraf dist",
+        "prebuild": "npm run clean",
+        "format": "prettier --write \"src/**/*.js\" \"*.{js,json,md}\"",
+        "test": "echo \"No tests specified\" && exit 0"
     },
     "keywords": [
         "image",
         "processing",
+        "optimization",
+        "resize",
+        "crop",
+        "batch",
         "browser",
-        "client-side"
+        "client-side",
+        "webp",
+        "avif",
+        "favicon",
+        "template",
+        "smart-crop",
+        "ai",
+        "canvas",
+        "javascript",
+        "library"
     ],
     "author": "LemGenda",
     "license": "MIT",
@@ -44,13 +58,24 @@
         "type": "git",
         "url": "git+https://github.com/lemgenda/image-lemgendizer-core.git"
     },
-    "devDependencies": {
-        "vite": "^5.4.21"
+    "bugs": {
+        "url": "https://github.com/lemgenda/image-lemgendizer-core/issues"
+    },
+    "homepage": "https://github.com/lemgenda/image-lemgendizer-core#readme",
+    "dependencies": {
+        "jszip": "^3.10.1"
     },
     "peerDependencies": {
         "jszip": "^3.10.1"
     },
-    "dependencies": {
-        "jszip": "^3.10.1"
+    "devDependencies": {
+        "prettier": "^3.2.5",
+        "rimraf": "^6.0.1",
+        "vite": "^5.4.21"
+    },
+    "sideEffects": false,
+    "publishConfig": {
+        "access": "public",
+        "registry": "https://registry.npmjs.org/"
     }
 }

@@ -7,11 +7,6 @@
 // Import centralized validation functions
 import {
     validateTask,
-    validateOptimizationOptions,
-    ValidationWarnings,
-    validateFaviconOptions,
-    validateTaskSteps,
-    validateTaskLogic
 } from '../utils/validationUtils.js'
 
 export class LemGendTask {

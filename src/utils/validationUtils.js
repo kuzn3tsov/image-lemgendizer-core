@@ -54,41 +54,6 @@ export const ValidationWarnings = {
 }
 
 /**
- * Check if dimension is variable
- */
-export function isVariableDimension(dimension) {
-    if (typeof dimension === 'string') {
-        return dimension.includes('{') || dimension.includes('*') ||
-            dimension.toLowerCase().includes('variable') ||
-            dimension.toLowerCase().includes('flexible') ||
-            dimension === 'auto' || dimension === 'any'
-    }
-    return false
-}
-
-/**
- * Parse dimension string or number
- */
-export function parseDimension(dimension) {
-    if (typeof dimension === 'number') {
-        return { value: dimension, isVariable: false, unit: 'px' }
-    }
-
-    if (typeof dimension === 'string') {
-        if (isVariableDimension(dimension)) {
-            return { value: null, isVariable: true, expression: dimension }
-        }
-
-        const match = dimension.match(/(\d+)/)
-        if (match) {
-            return { value: parseInt(match[1]), isVariable: false, unit: 'px' }
-        }
-    }
-
-    return { value: null, isVariable: false }
-}
-
-/**
  * Validate resize options (moved from LemGendaryResize)
  */
 export function validateResizeOptions(options = {}) {
@@ -318,51 +283,6 @@ export function validateOptimizationOptions(options = {}) {
 }
 
 /**
- * Validate template compatibility
- */
-export function validateTemplateCompatibility(template, imageInfo) {
-    const result = {
-        compatible: true,
-        errors: [],
-        warnings: []
-    }
-
-    if (!template || !imageInfo) {
-        result.compatible = false
-        result.errors.push({
-            code: 'MISSING_INFO',
-            message: 'Missing template or image information',
-            severity: 'error'
-        })
-        return result
-    }
-
-    const { width, height } = imageInfo
-    const widthInfo = parseDimension(template.width)
-    const heightInfo = parseDimension(template.height)
-
-    if (!widthInfo.isVariable && widthInfo.value && width < widthInfo.value) {
-        result.warnings.push({
-            code: 'SMALL_WIDTH',
-            message: `Image width (${width}px) smaller than template width (${widthInfo.value}px)`,
-            severity: 'warning',
-            suggestion: 'Image will be upscaled or may lose quality'
-        })
-    }
-
-    if (!heightInfo.isVariable && heightInfo.value && height < heightInfo.value) {
-        result.warnings.push({
-            code: 'SMALL_HEIGHT',
-            message: `Image height (${height}px) smaller than template height (${heightInfo.value}px)`,
-            severity: 'warning',
-            suggestion: 'Image will be upscaled or may lose quality'
-        })
-    }
-
-    return result
-}
-
-/**
  * Get validation summary
  */
 export function getValidationSummary(validationResult) {
@@ -374,18 +294,6 @@ export function getValidationSummary(validationResult) {
         errors: validationResult.errors,
         warnings: validationResult.warnings
     }
-}
-
-/**
- * Get flexible templates
- */
-export function getFlexibleTemplates(templates) {
-    if (!Array.isArray(templates)) return []
-    return templates.filter(template => {
-        const widthInfo = parseDimension(template.width)
-        const heightInfo = parseDimension(template.height)
-        return widthInfo.isVariable || heightInfo.isVariable
-    })
 }
 
 /**
@@ -1098,29 +1006,4 @@ export async function validateTask(task, lemGendImage) {
     })
 
     return result
-}
-
-// Default export for convenience
-export default {
-    ValidationErrors,
-    ValidationWarnings,
-    isVariableDimension,
-    parseDimension,
-    validateResizeOptions,
-    validateCropOptions,
-    validateOptimizationOptions,
-    validateTemplateCompatibility,
-    validateImage,
-    validateSessionImage,
-    validateTask,
-    validateTaskSteps,
-    validateTaskLogic,
-    validateFaviconOptions,
-    getValidationSummary,
-    getFlexibleTemplates,
-    validateDimensions,
-    validateResize,
-    validateCrop,
-    validateOptimization,
-    validateRenamePattern
 }

@@ -4,38 +4,8 @@
  */
 
 // Import from centralized utils
-import { formatFileSize, getFileExtension } from './imageUtils.js';
+import { formatFileSize, getFileExtension, getMimeTypeFromExtension } from './imageUtils.js';
 import { sanitizeFilename } from './stringUtils.js';
-
-// Helper function to get MIME type (moved here to avoid missing imports)
-function getMimeTypeFromExtension(filename) {
-    const extension = filename.toLowerCase().split('.').pop();
-
-    const mimeTypes = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'webp': 'image/webp',
-        'gif': 'image/gif',
-        'svg': 'image/svg+xml',
-        'bmp': 'image/bmp',
-        'ico': 'image/x-icon',
-        'tiff': 'image/tiff',
-        'tif': 'image/tiff',
-        'avif': 'image/avif',
-        'pdf': 'application/pdf',
-        'txt': 'text/plain',
-        'csv': 'text/csv',
-        'json': 'application/json',
-        'xml': 'application/xml',
-        'zip': 'application/zip',
-        'rar': 'application/vnd.rar',
-        '7z': 'application/x-7z-compressed',
-        '': 'application/octet-stream'
-    };
-
-    return mimeTypes[extension] || 'application/octet-stream';
-}
 
 // JSZip will be dynamically imported
 let JSZipInstance = null;
@@ -74,9 +44,7 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
     const mergedOptions = { ...defaultOptions, ...options };
 
     try {
-        // Dynamically import JSZip
         const JSZip = await getJSZip();
-
         if (!JSZip) {
             throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
         }
@@ -149,9 +117,7 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
         const zipBlob = await zip.generateAsync({
             type: 'blob',
             compression: 'DEFLATE',
-            compressionOptions: {
-                level: 6
-            },
+            compressionOptions: { level: 6 },
             comment: `Created by LemGendary Image Processor - ${now.toISOString()}`,
             platform: 'UNIX'
         });
@@ -169,7 +135,6 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
 export async function createSimpleZip(files = [], zipName = 'files') {
     try {
         const JSZip = await getJSZip();
-
         if (!JSZip) {
             throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
         }
@@ -204,7 +169,6 @@ export async function extractZip(zipBlob) {
 
     try {
         const JSZip = await getJSZip();
-
         if (!JSZip) {
             throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
         }
@@ -257,7 +221,6 @@ export async function getZipInfo(zipBlob) {
 
     try {
         const JSZip = await getJSZip();
-
         if (!JSZip) {
             throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
         }
@@ -317,7 +280,6 @@ export async function getZipInfo(zipBlob) {
 export async function createZipWithProgress(processedImages, options = {}, onProgress = null) {
     try {
         const JSZip = await getJSZip();
-
         if (!JSZip) {
             throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
         }
@@ -371,7 +333,7 @@ export async function createOptimizedZip(images, options = {}) {
     } = options;
 
     try {
-        // Dynamically import processors to avoid issues
+        // Import directly to avoid circular dependency
         const { LemGendaryOptimize } = await import('../processors/LemGendaryOptimize.js');
         const { LemGendImage } = await import('../LemGendImage.js');
 
@@ -391,15 +353,12 @@ export async function createOptimizedZip(images, options = {}) {
 
         console.log(`Optimizing ${lemGendImages.length} images...`);
 
-        // Note: prepareForZip method might not exist in all versions
-        // We'll use a fallback approach
         let optimizationResults = [];
 
         try {
             if (typeof optimizer.prepareForZip === 'function') {
                 optimizationResults = await optimizer.prepareForZip(lemGendImages);
             } else {
-                // Fallback: optimize each image individually
                 optimizationResults = await Promise.all(
                     lemGendImages.map(async (img) => {
                         try {
@@ -473,28 +432,6 @@ export async function createOptimizedZip(images, options = {}) {
     } catch (error) {
         console.error('Optimized ZIP creation failed:', error);
         throw new Error(`Failed to create optimized ZIP: ${error.message}`);
-    }
-}
-
-/**
- * Create ZIP from processed images (legacy function)
- */
-export async function lemGendBuildZip(processedResults, options = {}) {
-    console.warn('lemGendBuildZip is deprecated. Use createBatchZip or createTemplateZip instead.');
-
-    const images = processedResults
-        .filter(result => result.success && result.image)
-        .map(result => result.image);
-
-    const hasTemplates = images.some(img => {
-        const outputs = getImageOutputs(img);
-        return outputs.some(out => out.template);
-    });
-
-    if (hasTemplates) {
-        return createTemplateZip(processedResults, options);
-    } else {
-        return createBatchZip(processedResults, options);
     }
 }
 
@@ -816,31 +753,3 @@ function getOriginals(images) {
 
     return files;
 }
-
-// Export all functions
-export {
-    createLemGendaryZip,
-    createSimpleZip,
-    extractZip,
-    getZipInfo,
-    createZipWithProgress,
-    createOptimizedZip,
-    lemGendBuildZip,
-    createCustomZip,
-    createTemplateZip,
-    createBatchZip
-};
-
-// Default export
-export default {
-    createLemGendaryZip,
-    createSimpleZip,
-    extractZip,
-    getZipInfo,
-    createZipWithProgress,
-    createOptimizedZip,
-    lemGendBuildZip,
-    createCustomZip,
-    createTemplateZip,
-    createBatchZip
-};
