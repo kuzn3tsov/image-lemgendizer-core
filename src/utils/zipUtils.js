@@ -4,24 +4,282 @@
  */
 
 // Import from centralized utils
-import { formatFileSize, getFileExtension, getMimeTypeFromExtension } from './imageUtils.js';
+import { getImageOutputs, formatFileSize, getFileExtension, getMimeTypeFromExtension } from './imageUtils.js';
 import { sanitizeFilename } from './stringUtils.js';
 
 // JSZip will be dynamically imported
-let JSZipInstance = null;
+let JSZipPromise = null;
 
-async function getJSZip() {
-    if (!JSZipInstance) {
+/**
+ * Load JSZip library
+ */
+async function loadJSZip() {
+    if (JSZipPromise) return JSZipPromise;
+
+    JSZipPromise = (async () => {
         try {
             const JSZipModule = await import('jszip');
-            JSZipInstance = JSZipModule.default;
+            return JSZipModule.default;
         } catch (error) {
             console.error('Failed to load JSZip:', error);
-            throw new Error('JSZip library not loaded. Please ensure jszip is installed and imported correctly.');
+            throw new Error('JSZip library not loaded. Please ensure jszip is installed and available.');
+        }
+    })();
+
+    return JSZipPromise;
+}
+
+// ===== PRIVATE HELPER FUNCTIONS =====
+
+/**
+ * Categorize files based on processing mode
+ */
+async function categorizeFiles(images, options) {
+    const categories = {
+        originals: [],
+        optimized: [],
+        web: [],
+        logo: [],
+        favicon: [],
+        social: []
+    };
+
+    for (const image of images) {
+        if (options.includeOriginal && image.file && image.file instanceof File) {
+            categories.originals.push({
+                name: image.originalName || image.file.name,
+                content: image.file
+            });
+        }
+
+        const outputs = getImageOutputs(image);
+
+        for (const output of outputs) {
+            if (!output.file || !(output.file instanceof File)) continue;
+
+            const category = determineCategory(output, options.mode);
+
+            if (categories[category] && shouldIncludeCategory(category, options)) {
+                categories[category].push({
+                    name: output.file.name || `output-${Date.now()}.${getFileExtension(output.file)}`,
+                    content: output.file,
+                    metadata: output.metadata || {}
+                });
+            }
         }
     }
-    return JSZipInstance;
+
+    return categories;
 }
+
+/**
+ * Determine category for output
+ */
+function determineCategory(output, mode) {
+    if (mode === 'custom') {
+        return 'optimized';
+    }
+
+    const templateCategory = output.template?.category?.toLowerCase() ||
+        output.category?.toLowerCase() ||
+        '';
+
+    switch (templateCategory) {
+        case 'web':
+        case 'favicon':
+            return templateCategory;
+        case 'logo':
+            return 'logo';
+        case 'social':
+        case 'social media':
+            return 'social';
+        default:
+            return 'optimized';
+    }
+}
+
+/**
+ * Check if category should be included
+ */
+function shouldIncludeCategory(category, options) {
+    const categoryMap = {
+        originals: options.includeOriginal,
+        optimized: options.includeOptimized,
+        web: options.includeWebImages,
+        logo: options.includeLogoImages,
+        favicon: options.includeFaviconImages,
+        social: options.includeSocialMedia
+    };
+
+    return categoryMap[category] !== false;
+}
+
+/**
+ * Get folder structure based on mode
+ */
+function getFolderStructure(mode) {
+    if (mode === 'custom') {
+        return {
+            originals: '01_OriginalImages',
+            optimized: '02_OptimizedImages'
+        };
+    } else {
+        return {
+            originals: '01_OriginalImages',
+            web: '02_WebImages',
+            logo: '03_LogoImages',
+            favicon: '04_FaviconImages',
+            social: '05_SocialImages',
+            optimized: '06_OptimizedImages'
+        };
+    }
+}
+
+/**
+ * Get statistics category name
+ */
+function getStatsCategory(folderCategory) {
+    const map = {
+        'originals': 'originals',
+        'optimized': 'optimized',
+        'web': 'web',
+        'logo': 'logo',
+        'favicon': 'favicon',
+        'social': 'social'
+    };
+    return map[folderCategory] || 'optimized';
+}
+
+/**
+ * Generate info file content
+ */
+function generateInfoFileContent(images, stats, options) {
+    const now = new Date();
+
+    let infoText = `LEMGENDARY IMAGE EXPORT
+===========================
+
+Export Information
+------------------
+Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}
+Mode: ${options.mode === 'custom' ? 'Custom Processing' : 'Template Processing'}
+Tool: LemGendary Image Processor
+Version: 2.2.0
+Export ID: ${Date.now().toString(36).toUpperCase()}
+
+Options Used
+------------
+${Object.entries(options)
+            .filter(([key]) => !['zipName'].includes(key))
+            .map(([key, value]) => `${key.padEnd(25)}: ${value}`)
+            .join('\n')}
+
+Statistics
+----------
+Total Images Processed: ${stats.totalImages}
+Total Files in Export: ${Object.values(stats).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0) - stats.totalImages}
+
+File Breakdown:`;
+
+    const categories = ['originals', 'optimized', 'web', 'logo', 'favicon', 'social'];
+    categories.forEach(category => {
+        if (stats[category] > 0) {
+            const folderName = getFolderStructure(options.mode)[category] || category;
+            infoText += `\n  ${folderName.padEnd(25)}: ${stats[category]} files`;
+        }
+    });
+
+    infoText += `
+Format Distribution:
+${Object.entries(stats.formats)
+            .map(([format, count]) => `  ${format.toUpperCase().padEnd(6)}: ${count} files`)
+            .join('\n')}
+
+Total Size: ${formatFileSize(stats.totalSize)}
+
+Image Details
+-------------
+${images.map((img, index) => {
+                const outputs = getImageOutputs(img);
+                return `[${index + 1}] ${img.originalName || 'Unnamed'}
+  Original: ${formatFileSize(img.originalSize || 0)} | ${img.width || '?'}×${img.height || '?'}
+  Outputs: ${outputs.length} file(s)
+  ${outputs.map(out => `  - ${out.file?.name || 'Unnamed'} (${out.template?.category || 'custom'})`).join('\n  ')}`;
+            }).join('\n\n')}
+
+Folder Structure
+----------------
+${options.createFolders ?
+            Object.entries(getFolderStructure(options.mode))
+                .map(([category, folderName]) => {
+                    const count = stats[category] || 0;
+                    return `${folderName}/ - ${count > 0 ? `${count} files` : 'Empty (skipped)'}`;
+                })
+                .join('\n') :
+            'All files in root folder'}
+
+Notes
+-----
+• All processing done client-side in browser
+• No images uploaded to external servers
+• Empty folders are automatically skipped
+• Created with LemGendary Image Processor
+• https://github.com/lemgenda/image-lemgendizer`;
+
+    return infoText;
+}
+
+/**
+ * Calculate total files for progress tracking
+ */
+function calculateTotalFiles(images, options) {
+    let count = 0;
+
+    if (options.includeOriginal) {
+        count += images.filter(img => img.file).length;
+    }
+
+    for (const image of images) {
+        let outputs = [];
+        if (typeof image.getAllOutputs === 'function') {
+            outputs = image.getAllOutputs();
+        } else if (Array.isArray(image.outputs)) {
+            outputs = image.outputs;
+        }
+
+        for (const output of outputs) {
+            const category = output.template?.category || output.category || 'optimized';
+            const optionName = `include${category.charAt(0).toUpperCase() + category.slice(1)}`;
+
+            if (options[optionName] !== false) {
+                count++;
+            }
+        }
+    }
+
+    return Math.max(count, 1);
+}
+
+/**
+ * Get originals files from LemGendImages
+ */
+function getOriginals(images) {
+    const files = [];
+
+    for (const image of images) {
+        if (image.file && image.file instanceof File) {
+            const sanitizedName = sanitizeFilename(image.originalName || image.file.name);
+            files.push({
+                name: sanitizedName,
+                content: image.file
+            });
+        }
+    }
+
+    return files;
+}
+
+// ===== EXPORTED FUNCTIONS =====
 
 /**
  * Create a ZIP file with organized structure
@@ -44,9 +302,9 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
     const mergedOptions = { ...defaultOptions, ...options };
 
     try {
-        const JSZip = await getJSZip();
+        const JSZip = await loadJSZip();
         if (!JSZip) {
-            throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
+            throw new Error('JSZip library not available');
         }
 
         const zip = new JSZip();
@@ -134,9 +392,9 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
  */
 export async function createSimpleZip(files = [], zipName = 'files') {
     try {
-        const JSZip = await getJSZip();
+        const JSZip = await loadJSZip();
         if (!JSZip) {
-            throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
+            throw new Error('JSZip library not available');
         }
 
         const zip = new JSZip();
@@ -168,9 +426,9 @@ export async function extractZip(zipBlob) {
     }
 
     try {
-        const JSZip = await getJSZip();
+        const JSZip = await loadJSZip();
         if (!JSZip) {
-            throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
+            throw new Error('JSZip library not available');
         }
 
         const zip = await JSZip.loadAsync(zipBlob);
@@ -220,9 +478,9 @@ export async function getZipInfo(zipBlob) {
     }
 
     try {
-        const JSZip = await getJSZip();
+        const JSZip = await loadJSZip();
         if (!JSZip) {
-            throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
+            throw new Error('JSZip library not available');
         }
 
         const zip = await JSZip.loadAsync(zipBlob);
@@ -279,9 +537,9 @@ export async function getZipInfo(zipBlob) {
  */
 export async function createZipWithProgress(processedImages, options = {}, onProgress = null) {
     try {
-        const JSZip = await getJSZip();
+        const JSZip = await loadJSZip();
         if (!JSZip) {
-            throw new Error('JSZip library not loaded. Please ensure jszip is installed.');
+            throw new Error('JSZip library not available');
         }
 
         const zip = new JSZip();
@@ -333,9 +591,10 @@ export async function createOptimizedZip(images, options = {}) {
     } = options;
 
     try {
-        // Import directly to avoid circular dependency
-        const { LemGendaryOptimize } = await import('../processors/LemGendaryOptimize.js');
-        const { LemGendImage } = await import('../LemGendImage.js');
+        // Dynamically import modules to avoid circular dependency
+        const modules = await import('../processors/LemGendaryOptimize.js');
+        const LemGendaryOptimize = modules.LemGendaryOptimize;
+        const LemGendImage = (await import('../LemGendImage.js')).LemGendImage;
 
         const optimizer = new LemGendaryOptimize(optimization);
 
@@ -486,270 +745,4 @@ export async function createBatchZip(processedResults, options = {}) {
     };
 
     return createLemGendaryZip(images, zipOptions);
-}
-
-// ===== PRIVATE HELPER FUNCTIONS =====
-
-/**
- * Categorize files based on processing mode
- */
-async function categorizeFiles(images, options) {
-    const categories = {
-        originals: [],
-        optimized: [],
-        web: [],
-        logo: [],
-        favicon: [],
-        social: []
-    };
-
-    for (const image of images) {
-        if (options.includeOriginal && image.file && image.file instanceof File) {
-            categories.originals.push({
-                name: image.originalName || image.file.name,
-                content: image.file
-            });
-        }
-
-        const outputs = getImageOutputs(image);
-
-        for (const output of outputs) {
-            if (!output.file || !(output.file instanceof File)) continue;
-
-            const category = determineCategory(output, options.mode);
-
-            if (categories[category] && shouldIncludeCategory(category, options)) {
-                categories[category].push({
-                    name: output.file.name || `output-${Date.now()}.${getFileExtension(output.file)}`,
-                    content: output.file,
-                    metadata: output.metadata || {}
-                });
-            }
-        }
-    }
-
-    return categories;
-}
-
-/**
- * Get image outputs
- */
-function getImageOutputs(image) {
-    if (!image) return [];
-    if (typeof image.getAllOutputs === 'function') {
-        return image.getAllOutputs();
-    } else if (image.outputs && typeof image.outputs.get === 'function') {
-        return Array.from(image.outputs.values());
-    } else if (Array.isArray(image.outputs)) {
-        return image.outputs;
-    }
-    return [];
-}
-
-/**
- * Determine category for output
- */
-function determineCategory(output, mode) {
-    if (mode === 'custom') {
-        return 'optimized';
-    }
-
-    const templateCategory = output.template?.category?.toLowerCase() ||
-        output.category?.toLowerCase() ||
-        '';
-
-    switch (templateCategory) {
-        case 'web':
-        case 'favicon':
-            return templateCategory;
-        case 'logo':
-            return 'logo';
-        case 'social':
-        case 'social media':
-            return 'social';
-        default:
-            return 'optimized';
-    }
-}
-
-/**
- * Check if category should be included
- */
-function shouldIncludeCategory(category, options) {
-    const categoryMap = {
-        originals: options.includeOriginal,
-        optimized: options.includeOptimized,
-        web: options.includeWebImages,
-        logo: options.includeLogoImages,
-        favicon: options.includeFaviconImages,
-        social: options.includeSocialMedia
-    };
-
-    return categoryMap[category] !== false;
-}
-
-/**
- * Get folder structure based on mode
- */
-function getFolderStructure(mode) {
-    if (mode === 'custom') {
-        return {
-            originals: '01_OriginalImages',
-            optimized: '02_OptimizedImages'
-        };
-    } else {
-        return {
-            originals: '01_OriginalImages',
-            web: '02_WebImages',
-            logo: '03_LogoImages',
-            favicon: '04_FaviconImages',
-            social: '05_SocialImages',
-            optimized: '06_OptimizedImages'
-        };
-    }
-}
-
-/**
- * Get statistics category name
- */
-function getStatsCategory(folderCategory) {
-    const map = {
-        'originals': 'originals',
-        'optimized': 'optimized',
-        'web': 'web',
-        'logo': 'logo',
-        'favicon': 'favicon',
-        'social': 'social'
-    };
-    return map[folderCategory] || 'optimized';
-}
-
-/**
- * Generate info file content
- */
-function generateInfoFileContent(images, stats, options) {
-    const now = new Date();
-
-    let infoText = `LEMGENDARY IMAGE EXPORT
-===========================
-
-Export Information
-------------------
-Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}
-Mode: ${options.mode === 'custom' ? 'Custom Processing' : 'Template Processing'}
-Tool: LemGendary Image Processor
-Version: 2.2.0
-Export ID: ${Date.now().toString(36).toUpperCase()}
-
-Options Used
-------------
-${Object.entries(options)
-            .filter(([key]) => !['zipName'].includes(key))
-            .map(([key, value]) => `${key.padEnd(25)}: ${value}`)
-            .join('\n')}
-
-Statistics
-----------
-Total Images Processed: ${stats.totalImages}
-Total Files in Export: ${Object.values(stats).filter(v => typeof v === 'number').reduce((a, b) => a + b, 0) - stats.totalImages}
-
-File Breakdown:`;
-
-    const categories = ['originals', 'optimized', 'web', 'logo', 'favicon', 'social'];
-    categories.forEach(category => {
-        if (stats[category] > 0) {
-            const folderName = getFolderStructure(options.mode)[category] || category;
-            infoText += `\n  ${folderName.padEnd(25)}: ${stats[category]} files`;
-        }
-    });
-
-    infoText += `
-
-Format Distribution:
-${Object.entries(stats.formats)
-            .map(([format, count]) => `  ${format.toUpperCase().padEnd(6)}: ${count} files`)
-            .join('\n')}
-
-Total Size: ${formatFileSize(stats.totalSize)}
-
-Image Details
--------------
-${images.map((img, index) => {
-                const outputs = getImageOutputs(img);
-                return `[${index + 1}] ${img.originalName || 'Unnamed'}
-  Original: ${formatFileSize(img.originalSize || 0)} | ${img.width || '?'}×${img.height || '?'}
-  Outputs: ${outputs.length} file(s)
-  ${outputs.map(out => `  - ${out.file?.name || 'Unnamed'} (${out.template?.category || 'custom'})`).join('\n  ')}`;
-            }).join('\n\n')}
-
-Folder Structure
-----------------
-${options.createFolders ?
-            Object.entries(getFolderStructure(options.mode))
-                .map(([category, folderName]) => {
-                    const count = stats[category] || 0;
-                    return `${folderName}/ - ${count > 0 ? `${count} files` : 'Empty (skipped)'}`;
-                })
-                .join('\n') :
-            'All files in root folder'}
-
-Notes
------
-• All processing done client-side in browser
-• No images uploaded to external servers
-• Empty folders are automatically skipped
-• Created with LemGendary Image Processor
-• https://github.com/lemgenda/image-lemgendizer`;
-
-    return infoText;
-}
-
-/**
- * Calculate total files for progress tracking
- */
-function calculateTotalFiles(images, options) {
-    let count = 0;
-
-    if (options.includeOriginal) {
-        count += images.filter(img => img.file).length;
-    }
-
-    for (const image of images) {
-        let outputs = [];
-        if (typeof image.getAllOutputs === 'function') {
-            outputs = image.getAllOutputs();
-        } else if (Array.isArray(image.outputs)) {
-            outputs = image.outputs;
-        }
-
-        for (const output of outputs) {
-            const category = output.template?.category || output.category || 'optimized';
-            const optionName = `include${category.charAt(0).toUpperCase() + category.slice(1)}`;
-
-            if (options[optionName] !== false) {
-                count++;
-            }
-        }
-    }
-
-    return Math.max(count, 1);
-}
-
-/**
- * Get originals files from LemGendImages
- */
-function getOriginals(images) {
-    const files = [];
-
-    for (const image of images) {
-        if (image.file && image.file instanceof File) {
-            const sanitizedName = sanitizeFilename(image.originalName || image.file.name);
-            files.push({
-                name: sanitizedName,
-                content: image.file
-            });
-        }
-    }
-
-    return files;
 }

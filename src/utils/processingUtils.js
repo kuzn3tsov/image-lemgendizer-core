@@ -4,227 +4,78 @@
  */
 
 // Import core utilities
-import { getFileExtension, formatFileSize, isLemGendImage } from './imageUtils.js';
+import {
+    getFileExtension,
+    formatFileSize,
+    isLemGendImage,
+    resizeImage,
+    cropImage,
+    getImageOutputs
+} from './imageUtils.js';
+
+// Cache for dynamically loaded modules
+let cachedModules = null;
 
 /**
- * Helper function to get image outputs
+ * Load required modules dynamically
  */
-export function getImageOutputs(image) {
-    if (!image) return [];
-    if (typeof image.getAllOutputs === 'function') {
-        return image.getAllOutputs();
-    } else if (image.outputs && typeof image.outputs.get === 'function') {
-        return Array.from(image.outputs.values());
-    } else if (Array.isArray(image.outputs)) {
-        return image.outputs;
+async function loadModules() {
+    if (cachedModules) return cachedModules;
+
+    try {
+        const [
+            LemGendImageModule,
+            LemGendTaskModule,
+            LemGendaryResizeModule,
+            LemGendaryCropModule,
+            LemGendaryOptimizeModule,
+            LemGendaryRenameModule
+        ] = await Promise.all([
+            import('../LemGendImage.js'),
+            import('../tasks/LemGendTask.js'),
+            import('../processors/LemGendaryResize.js'),
+            import('../processors/LemGendaryCrop.js'),
+            import('../processors/LemGendaryOptimize.js'),
+            import('../processors/LemGendaryRename.js')
+        ]);
+
+        cachedModules = {
+            LemGendImage: LemGendImageModule.LemGendImage,
+            LemGendTask: LemGendTaskModule.LemGendTask,
+            LemGendaryResize: LemGendaryResizeModule.LemGendaryResize,
+            LemGendaryCrop: LemGendaryCropModule.LemGendaryCrop,
+            LemGendaryOptimize: LemGendaryOptimizeModule.LemGendaryOptimize,
+            LemGendaryRename: LemGendaryRenameModule.LemGendaryRename
+        };
+
+        return cachedModules;
+    } catch (error) {
+        console.error('Failed to load processing modules:', error);
+        throw new Error(`Failed to load processing modules: ${error.message}`);
     }
-    return [];
 }
 
 /**
- * Actually resize an image using canvas
- */
-export async function actuallyResizeImage(file, targetWidth, targetHeight, algorithm = 'lanczos3') {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Canvas context not supported'));
-                    return;
-                }
-
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-
-                ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject(new Error('Failed to create blob from canvas'));
-                        return;
-                    }
-
-                    const resizedFile = new File(
-                        [blob],
-                        file.name,
-                        { type: file.type }
-                    );
-
-                    URL.revokeObjectURL(img.src);
-                    resolve(resizedFile);
-                }, file.type, 0.95);
-            } catch (error) {
-                URL.revokeObjectURL(img.src);
-                reject(new Error(`Resize failed: ${error.message}`));
-            }
-        };
-        img.onerror = () => {
-            reject(new Error('Failed to load image for resizing'));
-        };
-        img.src = URL.createObjectURL(file);
-    });
-}
-
-/**
- * Actually crop an image using canvas
- */
-export async function actuallyCropImage(file, originalWidth, originalHeight, cropWidth, cropHeight, offsetX, offsetY) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = cropWidth;
-                canvas.height = cropHeight;
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Canvas context not supported'));
-                    return;
-                }
-
-                ctx.drawImage(
-                    img,
-                    offsetX, offsetY, cropWidth, cropHeight,
-                    0, 0, cropWidth, cropHeight
-                );
-
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject(new Error('Failed to create blob from canvas'));
-                        return;
-                    }
-
-                    const croppedFile = new File(
-                        [blob],
-                        file.name,
-                        { type: file.type }
-                    );
-
-                    URL.revokeObjectURL(img.src);
-                    resolve(croppedFile);
-                }, file.type, 0.95);
-            } catch (error) {
-                URL.revokeObjectURL(img.src);
-                reject(new Error(`Crop failed: ${error.message}`));
-            }
-        };
-        img.onerror = () => {
-            reject(new Error('Failed to load image for cropping'));
-        };
-        img.src = URL.createObjectURL(file);
-    });
-}
-
-/**
- * Apply optimization to file using canvas
+ * Apply optimization to file
  */
 export async function applyOptimization(file, dimensions, options, hasTransparency) {
-    const { quality, format, lossless = false } = options;
+    const { quality, format } = options;
 
     if (format === 'original') {
         return file;
     }
 
-    return new Promise((resolve, reject) => {
-        const img = new Image();
+    // Use resizeImage with current dimensions for optimization
+    const outputFormat = format.toLowerCase();
+    const qualityValue = Math.max(0.1, Math.min(1, quality / 100));
 
-        img.onload = () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = dimensions.width;
-                canvas.height = dimensions.height;
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    reject(new Error('Canvas context not supported'));
-                    return;
-                }
-
-                ctx.drawImage(img, 0, 0, dimensions.width, dimensions.height);
-
-                let mimeType = 'image/jpeg';
-                let qualityValue = Math.max(0.1, Math.min(1, quality / 100));
-
-                switch (format.toLowerCase()) {
-                    case 'webp':
-                        mimeType = 'image/webp';
-                        break;
-                    case 'png':
-                        mimeType = 'image/png';
-                        qualityValue = undefined;
-                        break;
-                    case 'avif':
-                        mimeType = 'image/avif';
-                        break;
-                    case 'jpg':
-                    case 'jpeg':
-                    default:
-                        mimeType = 'image/jpeg';
-                }
-
-                if (hasTransparency && (format === 'jpg' || format === 'jpeg')) {
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = dimensions.width;
-                    tempCanvas.height = dimensions.height;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    tempCtx.fillStyle = 'white';
-                    tempCtx.fillRect(0, 0, dimensions.width, dimensions.height);
-                    tempCtx.drawImage(img, 0, 0);
-
-                    tempCanvas.toBlob(
-                        (blob) => {
-                            if (!blob) {
-                                reject(new Error('Failed to create blob'));
-                                return;
-                            }
-
-                            const optimizedFile = new File(
-                                [blob],
-                                `${file.name.replace(/\.[^/.]+$/, '')}.${format.toLowerCase()}`,
-                                { type: mimeType }
-                            );
-                            URL.revokeObjectURL(img.src);
-                            resolve(optimizedFile);
-                        },
-                        mimeType,
-                        qualityValue
-                    );
-                } else {
-                    canvas.toBlob(
-                        (blob) => {
-                            if (!blob) {
-                                reject(new Error('Failed to create blob'));
-                                return;
-                            }
-
-                            const optimizedFile = new File(
-                                [blob],
-                                `${file.name.replace(/\.[^/.]+$/, '')}.${format.toLowerCase()}`,
-                                { type: mimeType }
-                            );
-                            URL.revokeObjectURL(img.src);
-                            resolve(optimizedFile);
-                        },
-                        mimeType,
-                        qualityValue
-                    );
-                }
-            } catch (error) {
-                URL.revokeObjectURL(img.src);
-                reject(new Error(`Optimization failed: ${error.message}`));
-            }
-        };
-
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
-    });
+    return await resizeImage(
+        file,
+        dimensions.width,
+        dimensions.height,
+        outputFormat,
+        qualityValue
+    );
 }
 
 /**
@@ -233,75 +84,30 @@ export async function applyOptimization(file, dimensions, options, hasTransparen
 export async function processSingleFile(file, task, index) {
     console.log('processSingleFile called with:', {
         fileType: file?.constructor?.name,
-        isLemGendImage: isLemGendImage(file),
-        hasFileProperty: !!(file?.file),
-        filePropertyType: file?.file?.constructor?.name
+        isLemGendImage: isLemGendImage(file)
     });
 
     let lemGendImage;
 
     try {
-        // Dynamically import classes to avoid circular dependency
-        const { LemGendImage } = await import('../LemGendImage.js');
-        const { LemGendTask } = await import('../tasks/LemGendTask.js');
-        const { LemGendaryResize } = await import('../processors/LemGendaryResize.js');
-        const { LemGendaryCrop } = await import('../processors/LemGendaryCrop.js');
-        const { LemGendaryOptimize } = await import('../processors/LemGendaryOptimize.js');
-        const { LemGendaryRename } = await import('../processors/LemGendaryRename.js');
+        // Load all required modules
+        const modules = await loadModules();
+        const {
+            LemGendImage,
+            LemGendaryResize,
+            LemGendaryCrop,
+            LemGendaryOptimize,
+            LemGendaryRename
+        } = modules;
 
+        // Create or validate LemGendImage instance
         if (isLemGendImage(file)) {
             lemGendImage = file;
-
             console.log('Using existing LemGendImage:', {
-                hasFile: !!lemGendImage.file,
-                fileType: lemGendImage.file?.constructor?.name,
+                originalName: lemGendImage.originalName,
                 width: lemGendImage.width,
-                height: lemGendImage.height,
-                originalName: lemGendImage.originalName
+                height: lemGendImage.height
             });
-
-            if (!lemGendImage.file || !(lemGendImage.file instanceof File)) {
-                console.warn('LemGendImage missing valid file property, attempting to reconstruct...');
-                if (lemGendImage.originalName && lemGendImage.originalSize) {
-                    const placeholderBlob = new Blob([''], {
-                        type: lemGendImage.metadata?.type || 'image/jpeg'
-                    });
-                    const reconstructedFile = new File(
-                        [placeholderBlob],
-                        lemGendImage.originalName,
-                        {
-                            type: lemGendImage.metadata?.type || 'image/jpeg',
-                            lastModified: Date.now()
-                        }
-                    );
-                    lemGendImage.file = reconstructedFile;
-                } else {
-                    throw new Error('LemGendImage has no valid file property and cannot be reconstructed');
-                }
-            }
-
-            if (!lemGendImage.width || !lemGendImage.height) {
-                try {
-                    console.log('LemGendImage missing dimensions, loading...');
-                    await lemGendImage.load();
-                } catch (loadError) {
-                    console.warn('Failed to load existing LemGendImage:', loadError);
-                    lemGendImage.width = lemGendImage.width || 1000;
-                    lemGendImage.height = lemGendImage.height || 1000;
-                }
-            }
-
-        } else if (file && file.file && file.file instanceof File) {
-            console.log('Creating new LemGendImage from file object...');
-            lemGendImage = new LemGendImage(file.file);
-            try {
-                await lemGendImage.load();
-            } catch (loadError) {
-                console.warn('Failed to load image, using defaults:', loadError);
-                lemGendImage.width = lemGendImage.width || 1000;
-                lemGendImage.height = lemGendImage.height || 1000;
-            }
-
         } else if (file instanceof File || file instanceof Blob) {
             console.log('Creating new LemGendImage from File/Blob...');
             lemGendImage = new LemGendImage(file);
@@ -312,24 +118,27 @@ export async function processSingleFile(file, task, index) {
                 lemGendImage.width = lemGendImage.width || 1000;
                 lemGendImage.height = lemGendImage.height || 1000;
             }
-
         } else {
-            throw new Error(`Invalid file type provided for processing. Got: ${typeof file}, constructor: ${file?.constructor?.name}`);
+            throw new Error(`Invalid file type provided. Got: ${typeof file}, constructor: ${file?.constructor?.name}`);
         }
 
+        // Validate the instance
         if (!lemGendImage || !isLemGendImage(lemGendImage)) {
             throw new Error('Failed to create valid LemGendImage instance');
         }
 
+        // Ensure file property exists
         if (!lemGendImage.file || !(lemGendImage.file instanceof File)) {
             console.warn('LemGendImage missing file property, creating placeholder...');
             const placeholderBlob = new Blob([''], { type: 'image/jpeg' });
-            lemGendImage.file = new File([placeholderBlob], lemGendImage.originalName || 'image.jpg', {
-                type: 'image/jpeg',
-                lastModified: Date.now()
-            });
+            lemGendImage.file = new File(
+                [placeholderBlob],
+                lemGendImage.originalName || 'image.jpg',
+                { type: 'image/jpeg', lastModified: Date.now() }
+            );
         }
 
+        // Ensure dimensions exist
         if (!lemGendImage.width || !lemGendImage.height) {
             console.warn('LemGendImage missing dimensions, setting defaults...');
             lemGendImage.width = lemGendImage.width || 1000;
@@ -339,13 +148,8 @@ export async function processSingleFile(file, task, index) {
         console.log('Validating task with LemGendImage...', {
             originalName: lemGendImage.originalName,
             width: lemGendImage.width,
-            height: lemGendImage.height,
-            hasFile: !!lemGendImage.file,
-            fileType: lemGendImage.file?.constructor?.name
+            height: lemGendImage.height
         });
-
-        // Note: validateTask is dynamically imported within the function when needed
-        // to avoid circular dependency
 
         const enabledSteps = task.getEnabledSteps();
         let currentFile = lemGendImage.file;
@@ -380,11 +184,12 @@ export async function processSingleFile(file, task, index) {
                             dimension: step.options.dimension
                         });
 
-                        currentFile = await actuallyResizeImage(
+                        currentFile = await resizeImage(
                             currentFile,
                             resizeResult.newDimensions.width,
                             resizeResult.newDimensions.height,
-                            step.options.algorithm || 'lanczos3'
+                            'webp',
+                            step.options.quality || 0.95
                         );
 
                         currentDimensions = resizeResult.newDimensions;
@@ -392,11 +197,6 @@ export async function processSingleFile(file, task, index) {
                         lemGendImage.addOperation('resize', resizeResult);
 
                         console.log(`✓ Resized to: ${currentDimensions.width}x${currentDimensions.height}`);
-                        console.log('File after resize:', {
-                            name: currentFile.name,
-                            size: currentFile.size,
-                            type: currentFile.type
-                        });
                         break;
 
                     case 'crop':
@@ -410,22 +210,14 @@ export async function processSingleFile(file, task, index) {
                             smartCrop: cropResult.smartCrop
                         });
 
-                        if (cropResult.smartCrop) {
-                            console.log('Smart crop detected with steps:', {
-                                detection: cropResult.steps.detection.confidence,
-                                resize: cropResult.steps.resize,
-                                crop: cropResult.cropOffsets
-                            });
-                        }
-
-                        currentFile = await actuallyCropImage(
+                        currentFile = await cropImage(
                             currentFile,
-                            currentDimensions.width,
-                            currentDimensions.height,
+                            cropResult.cropOffsets.x,
+                            cropResult.cropOffsets.y,
                             cropResult.cropOffsets.width,
                             cropResult.cropOffsets.height,
-                            cropResult.cropOffsets.x,
-                            cropResult.cropOffsets.y
+                            'webp',
+                            step.options.quality || 0.95
                         );
 
                         currentDimensions = cropResult.finalDimensions;
@@ -433,11 +225,6 @@ export async function processSingleFile(file, task, index) {
                         lemGendImage.addOperation('crop', cropResult);
 
                         console.log(`✓ Cropped to: ${currentDimensions.width}x${currentDimensions.height}`);
-                        console.log('File after crop:', {
-                            name: currentFile.name,
-                            size: currentFile.size,
-                            type: currentFile.type
-                        });
                         break;
 
                     case 'optimize':
@@ -452,20 +239,17 @@ export async function processSingleFile(file, task, index) {
                             savings: optimizeResult.savings
                         });
 
-                        currentFile = await applyOptimization(
+                        const optimizedFile = await resizeImage(
                             currentFile,
-                            currentDimensions,
-                            step.options,
-                            lemGendImage.transparency || false
+                            currentDimensions.width,
+                            currentDimensions.height,
+                            step.options.format || 'webp',
+                            (step.options.quality || 85) / 100
                         );
 
+                        currentFile = optimizedFile;
                         lemGendImage.addOperation('optimize', optimizeResult);
                         console.log(`✓ Optimized to: ${step.options.format} at ${step.options.quality}%`);
-                        console.log('File after optimize:', {
-                            name: currentFile.name,
-                            size: currentFile.size,
-                            type: currentFile.type
-                        });
                         break;
 
                     case 'rename':
@@ -473,7 +257,6 @@ export async function processSingleFile(file, task, index) {
                         const renameResult = await renameProcessor.process(lemGendImage, index, task.steps.length);
 
                         const extension = getFileExtension(currentFile);
-
                         const renamedFile = new File(
                             [currentFile],
                             `${renameResult.newName}.${extension}`,
@@ -495,11 +278,7 @@ export async function processSingleFile(file, task, index) {
         }
 
         const outputFormat = getFileExtension(currentFile);
-        lemGendImage.addOutput(
-            outputFormat,
-            currentFile,
-            null
-        );
+        lemGendImage.addOutput(outputFormat, currentFile, null);
 
         console.log('\n=== Processing Complete ===');
         console.log('Final result:', {

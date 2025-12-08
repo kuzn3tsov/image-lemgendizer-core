@@ -468,6 +468,8 @@ if (taskValidation.hasWarnings) {
 ```
 core/
 ├── src/
+│   ├── constants/               # Constants
+│   │   └── sharedConstants.js    # Shared constants
 │   ├── processors/              # Processing modules
 │   │   ├── LemGendaryResize.js   # Intelligent resizing
 │   │   ├── LemGendaryCrop.js     # AI-powered cropping

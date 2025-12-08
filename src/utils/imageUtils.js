@@ -3,6 +3,14 @@
  * @module utils/imageUtils
  */
 
+// Import shared constants
+import {
+    ImageMimeTypes,
+    FileExtensions,
+    AspectRatios,
+    Defaults
+} from '../constants/sharedConstants.js';
+
 /**
  * Get image dimensions from File
  * @param {File} file - Image file
@@ -16,7 +24,7 @@ export async function getImageDimensions(file) {
         }
 
         // Special handling for favicons
-        if (file.type === 'image/x-icon' || file.type === 'image/vnd.microsoft.icon') {
+        if (file.type === ImageMimeTypes.ICO || file.type === ImageMimeTypes.MICROSOFT_ICO) {
             getIcoDimensions(file)
                 .then(resolve)
                 .catch(() => resolve({ width: 32, height: 32, orientation: 'square', aspectRatio: 1 }));
@@ -42,7 +50,7 @@ export async function getImageDimensions(file) {
             URL.revokeObjectURL(objectUrl);
 
             // For SVG files, try different approach
-            if (file.type === 'image/svg+xml') {
+            if (file.type === ImageMimeTypes.SVG) {
                 getSVGDimensions(file)
                     .then(resolve)
                     .catch(() => reject(new Error('Failed to load image dimensions')));
@@ -64,29 +72,187 @@ export function getMimeTypeFromExtension(filename) {
     const extension = filename.toLowerCase().split('.').pop();
 
     const mimeTypes = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'webp': 'image/webp',
-        'gif': 'image/gif',
-        'svg': 'image/svg+xml',
-        'bmp': 'image/bmp',
-        'ico': 'image/x-icon',
-        'tiff': 'image/tiff',
-        'tif': 'image/tiff',
-        'avif': 'image/avif',
+        // Image formats
+        [FileExtensions.JPG]: ImageMimeTypes.JPEG,
+        [FileExtensions.JPEG]: ImageMimeTypes.JPEG,
+        [FileExtensions.PNG]: ImageMimeTypes.PNG,
+        [FileExtensions.WEBP]: ImageMimeTypes.WEBP,
+        [FileExtensions.GIF]: ImageMimeTypes.GIF,
+        [FileExtensions.SVG]: ImageMimeTypes.SVG,
+        [FileExtensions.BMP]: ImageMimeTypes.BMP,
+        [FileExtensions.TIFF]: ImageMimeTypes.TIFF,
+        [FileExtensions.TIF]: ImageMimeTypes.TIFF,
+        [FileExtensions.AVIF]: ImageMimeTypes.AVIF,
+        [FileExtensions.ICO]: ImageMimeTypes.ICO,
+        [FileExtensions.EPS]: 'application/postscript',
+        [FileExtensions.PDF]: 'application/pdf',
+
+        // Document formats
         'pdf': 'application/pdf',
+        'eps': 'application/postscript',
+        'ai': 'application/postscript',
+
+        // Text formats
         'txt': 'text/plain',
         'csv': 'text/csv',
+        'html': 'text/html',
+        'htm': 'text/html',
+        'css': 'text/css',
+        'js': 'application/javascript',
         'json': 'application/json',
         'xml': 'application/xml',
+
+        // Archive formats
         'zip': 'application/zip',
         'rar': 'application/vnd.rar',
         '7z': 'application/x-7z-compressed',
+        'tar': 'application/x-tar',
+        'gz': 'application/gzip',
+
+        // Video formats
+        'mp4': 'video/mp4',
+        'mov': 'video/quicktime',
+        'avi': 'video/x-msvideo',
+        'mkv': 'video/x-matroska',
+        'webm': 'video/webm',
+
+        // Audio formats
+        'mp3': 'audio/mpeg',
+        'wav': 'audio/wav',
+        'ogg': 'audio/ogg',
+        'm4a': 'audio/mp4',
+
+        // Font formats
+        'ttf': 'font/ttf',
+        'otf': 'font/otf',
+        'woff': 'font/woff',
+        'woff2': 'font/woff2',
+
+        // Default
         '': 'application/octet-stream'
     };
 
     return mimeTypes[extension] || 'application/octet-stream';
+}
+
+/**
+ * Get file extension from MIME type
+ * @param {string} mimeType - MIME type
+ * @returns {string} File extension
+ */
+export function getExtensionFromMimeType(mimeType) {
+    const extensionMap = {
+        // Image formats
+        [ImageMimeTypes.JPEG]: FileExtensions.JPG,
+        [ImageMimeTypes.PNG]: FileExtensions.PNG,
+        [ImageMimeTypes.WEBP]: FileExtensions.WEBP,
+        [ImageMimeTypes.GIF]: FileExtensions.GIF,
+        [ImageMimeTypes.SVG]: FileExtensions.SVG,
+        [ImageMimeTypes.BMP]: FileExtensions.BMP,
+        [ImageMimeTypes.TIFF]: FileExtensions.TIFF,
+        [ImageMimeTypes.AVIF]: FileExtensions.AVIF,
+        [ImageMimeTypes.ICO]: FileExtensions.ICO,
+        [ImageMimeTypes.MICROSOFT_ICO]: FileExtensions.ICO,
+
+        // Document formats
+        'application/pdf': 'pdf',
+        'application/postscript': 'eps',
+
+        // Text formats
+        'text/plain': 'txt',
+        'text/csv': 'csv',
+        'text/html': 'html',
+        'application/javascript': 'js',
+        'application/json': 'json',
+        'application/xml': 'xml',
+
+        // Archive formats
+        'application/zip': 'zip',
+        'application/vnd.rar': 'rar',
+
+        // Video formats
+        'video/mp4': 'mp4',
+        'video/quicktime': 'mov',
+
+        // Audio formats
+        'audio/mpeg': 'mp3',
+        'audio/wav': 'wav',
+
+        // Font formats
+        'font/ttf': 'ttf',
+        'font/otf': 'otf'
+    };
+
+    return extensionMap[mimeType] || 'bin';
+}
+
+/**
+ * Check if MIME type is an image
+ * @param {string} mimeType - MIME type to check
+ * @returns {boolean} True if image MIME type
+ */
+export function isImageMimeType(mimeType) {
+    const imageMimeTypes = [
+        ImageMimeTypes.JPEG,
+        ImageMimeTypes.PNG,
+        ImageMimeTypes.WEBP,
+        ImageMimeTypes.GIF,
+        ImageMimeTypes.SVG,
+        ImageMimeTypes.BMP,
+        ImageMimeTypes.TIFF,
+        ImageMimeTypes.AVIF,
+        ImageMimeTypes.ICO,
+        ImageMimeTypes.MICROSOFT_ICO
+    ];
+
+    return imageMimeTypes.includes(mimeType) || mimeType.startsWith('image/');
+}
+
+/**
+ * Get allowed image MIME types for validation
+ * @returns {Array<string>} Array of allowed MIME types
+ */
+export function getAllowedImageMimeTypes() {
+    return [
+        ImageMimeTypes.JPEG,
+        ImageMimeTypes.PNG,
+        ImageMimeTypes.WEBP,
+        ImageMimeTypes.GIF,
+        ImageMimeTypes.SVG,
+        ImageMimeTypes.BMP,
+        ImageMimeTypes.TIFF,
+        ImageMimeTypes.AVIF,
+        ImageMimeTypes.ICO,
+        ImageMimeTypes.MICROSOFT_ICO
+    ];
+}
+
+/**
+ * Get file extension priorities for format conversion
+ * @returns {Object} Extension priority mapping
+ */
+export function getExtensionPriorities() {
+    return {
+        // Modern formats (highest priority)
+        [FileExtensions.WEBP]: 1,
+        [FileExtensions.AVIF]: 2,
+        [FileExtensions.SVG]: 3,
+
+        // Standard formats
+        [FileExtensions.PNG]: 4,
+        [FileExtensions.JPEG]: 5,
+        [FileExtensions.JPG]: 5,
+
+        // Legacy formats
+        [FileExtensions.GIF]: 6,
+        [FileExtensions.BMP]: 7,
+        [FileExtensions.TIFF]: 8,
+        [FileExtensions.ICO]: 9,
+
+        // Other
+        'pdf': 10,
+        'eps': 11
+    };
 }
 
 /**
@@ -154,7 +320,7 @@ async function getIcoDimensions(file) {
  * @returns {Promise<boolean>} True if image has transparency
  */
 export async function hasTransparency(file) {
-    if (!file || (file.type !== 'image/png' && file.type !== 'image/webp')) {
+    if (!file || (file.type !== ImageMimeTypes.PNG && file.type !== ImageMimeTypes.WEBP)) {
         return false; // Only PNG and WebP have meaningful transparency for our purposes
     }
 
@@ -243,12 +409,12 @@ export function dataURLtoFile(dataURL, filename) {
  * @param {number} quality - Quality (0-1)
  * @returns {Promise<File>} Resized image file
  */
-export async function resizeImage(file, width, height, format = 'webp', quality = 0.8) {
+export async function resizeImage(file, width, height, format = FileExtensions.WEBP, quality = 0.8) {
     return new Promise((resolve, reject) => {
         // Special handling for favicon format
-        if (format.toLowerCase() === 'ico') {
+        if (format.toLowerCase() === FileExtensions.ICO) {
             // Create PNG first, then convert to ICO (simplified approach)
-            resizeImage(file, width, height, 'png', quality)
+            resizeImage(file, width, height, FileExtensions.PNG, quality)
                 .then(pngFile => {
                     // For now, return PNG and warn about ICO limitation
                     console.warn('ICO format creation limited in browser. Using PNG instead.');
@@ -268,7 +434,7 @@ export async function resizeImage(file, width, height, format = 'webp', quality 
             const ctx = canvas.getContext('2d');
 
             // Fill background for JPEG
-            if (format === 'jpg' || format === 'jpeg') {
+            if (format === FileExtensions.JPG || format === FileExtensions.JPEG) {
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, width, height);
             }
@@ -278,24 +444,24 @@ export async function resizeImage(file, width, height, format = 'webp', quality 
             // Determine MIME type
             let mimeType;
             switch (format.toLowerCase()) {
-                case 'jpg':
-                case 'jpeg':
-                    mimeType = 'image/jpeg';
+                case FileExtensions.JPG:
+                case FileExtensions.JPEG:
+                    mimeType = ImageMimeTypes.JPEG;
                     break;
-                case 'png':
-                    mimeType = 'image/png';
+                case FileExtensions.PNG:
+                    mimeType = ImageMimeTypes.PNG;
                     break;
-                case 'webp':
-                    mimeType = 'image/webp';
+                case FileExtensions.WEBP:
+                    mimeType = ImageMimeTypes.WEBP;
                     break;
-                case 'avif':
-                    mimeType = 'image/avif';
+                case FileExtensions.AVIF:
+                    mimeType = ImageMimeTypes.AVIF;
                     break;
-                case 'svg':
-                    mimeType = 'image/svg+xml';
+                case FileExtensions.SVG:
+                    mimeType = ImageMimeTypes.SVG;
                     break;
                 default:
-                    mimeType = 'image/webp';
+                    mimeType = ImageMimeTypes.WEBP;
             }
 
             canvas.toBlob(
@@ -338,7 +504,7 @@ export async function resizeImage(file, width, height, format = 'webp', quality 
  * @param {number} quality - Quality (0-1)
  * @returns {Promise<File>} Cropped image file
  */
-export async function cropImage(file, x, y, width, height, format = 'webp', quality = 0.8) {
+export async function cropImage(file, x, y, width, height, format = FileExtensions.WEBP, quality = 0.8) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
@@ -350,7 +516,7 @@ export async function cropImage(file, x, y, width, height, format = 'webp', qual
             const ctx = canvas.getContext('2d');
 
             // Fill background for JPEG
-            if (format === 'jpg' || format === 'jpeg') {
+            if (format === FileExtensions.JPG || format === FileExtensions.JPEG) {
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, width, height);
             }
@@ -360,18 +526,18 @@ export async function cropImage(file, x, y, width, height, format = 'webp', qual
             // Determine MIME type
             let mimeType;
             switch (format.toLowerCase()) {
-                case 'jpg':
-                case 'jpeg':
-                    mimeType = 'image/jpeg';
+                case FileExtensions.JPG:
+                case FileExtensions.JPEG:
+                    mimeType = ImageMimeTypes.JPEG;
                     break;
-                case 'png':
-                    mimeType = 'image/png';
+                case FileExtensions.PNG:
+                    mimeType = ImageMimeTypes.PNG;
                     break;
-                case 'webp':
-                    mimeType = 'image/webp';
+                case FileExtensions.WEBP:
+                    mimeType = ImageMimeTypes.WEBP;
                     break;
                 default:
-                    mimeType = 'image/webp';
+                    mimeType = ImageMimeTypes.WEBP;
             }
 
             canvas.toBlob(
@@ -458,83 +624,124 @@ export function formatFileSize(bytes, decimals = 2) {
  * @returns {string} File extension
  */
 export function getFileExtension(fileOrName) {
+    // 1. Handle null/undefined/empty input
+    if (fileOrName == null) {
+        return 'unknown';
+    }
+
+    // 2. Handle File object
     if (fileOrName instanceof File) {
-        // Try from name first
-        const nameExt = fileOrName.name.split('.').pop().toLowerCase();
-        if (nameExt && nameExt.length <= 4) {
-            return nameExt;
+        // 2a. Get file name safely
+        const fileName = fileOrName.name;
+
+        // 2b. Check if fileName is a valid string before using string methods
+        if (fileName && typeof fileName === 'string' && fileName.length > 0) {
+            // 2c. Safely check if it contains a period
+            if (fileName.includes && typeof fileName.includes === 'function') {
+                if (fileName.includes('.')) {
+                    const nameExt = fileName.split('.').pop();
+                    if (nameExt && typeof nameExt === 'string') {
+                        const ext = nameExt.toLowerCase();
+                        if (ext.length <= 10) {
+                            return ext;
+                        }
+                    }
+                }
+            }
         }
 
-        // Fall back to MIME type
-        const mimeExt = {
-            'image/jpeg': 'jpg',
-            'image/jpg': 'jpg',
-            'image/png': 'png',
-            'image/webp': 'webp',
-            'image/gif': 'gif',
-            'image/svg+xml': 'svg',
-            'image/bmp': 'bmp',
-            'image/tiff': 'tiff',
-            'image/avif': 'avif',
-            'image/x-icon': 'ico',
-            'image/vnd.microsoft.icon': 'ico'
-        }[fileOrName.type];
+        // 2d. Fall back to MIME type if name extraction failed
+        const fileType = fileOrName.type;
+        if (fileType && typeof fileType === 'string') {
+            const mimeExt = {
+                [ImageMimeTypes.JPEG]: FileExtensions.JPG,
+                [ImageMimeTypes.PNG]: FileExtensions.PNG,
+                [ImageMimeTypes.WEBP]: FileExtensions.WEBP,
+                [ImageMimeTypes.GIF]: FileExtensions.GIF,
+                [ImageMimeTypes.SVG]: FileExtensions.SVG,
+                [ImageMimeTypes.BMP]: FileExtensions.BMP,
+                [ImageMimeTypes.TIFF]: FileExtensions.TIFF,
+                [ImageMimeTypes.AVIF]: FileExtensions.AVIF,
+                [ImageMimeTypes.ICO]: FileExtensions.ICO,
+                [ImageMimeTypes.MICROSOFT_ICO]: FileExtensions.ICO
+            }[fileType.toLowerCase()];
 
-        return mimeExt || 'unknown';
+            if (mimeExt) {
+                return mimeExt;
+            }
+        }
+
+        return 'unknown';
     }
 
-    // String input
-    const name = typeof fileOrName === 'string' ? fileOrName : '';
-    const ext = name.split('.').pop().toLowerCase();
-    return ext && ext.length <= 4 ? ext : 'unknown';
-}
+    // 3. Handle string input
+    if (typeof fileOrName === 'string') {
+        const name = fileOrName.trim();
 
-/**
- * Validate image file
- * @param {File} file - File to validate
- * @returns {Object} Validation result
- */
-export function validateImageFile(file) {
-    const errors = [];
-    const warnings = [];
+        // 3a. Check if string is empty
+        if (name.length === 0) {
+            return 'unknown';
+        }
 
-    // Check if it's a File object
-    if (!(file instanceof File)) {
-        errors.push('Not a valid File object');
-        return { valid: false, errors, warnings };
+        // 3b. Safely check if it contains a period
+        if (name.includes && typeof name.includes === 'function') {
+            if (name.includes('.')) {
+                const ext = name.split('.').pop();
+                if (ext && typeof ext === 'string') {
+                    const lowerExt = ext.toLowerCase();
+
+                    // Remove any query parameters or fragments
+                    const cleanExt = lowerExt.split('?')[0].split('#')[0].split(';')[0];
+
+                    // Validate extension format
+                    if (cleanExt && cleanExt.length <= 10 && /^[a-z0-9]+$/.test(cleanExt)) {
+                        return cleanExt;
+                    }
+                }
+            }
+        }
+
+        return 'unknown';
     }
 
-    // Check file type
-    const validTypes = [
-        'image/jpeg', 'image/jpg', 'image/png',
-        'image/webp', 'image/gif', 'image/svg+xml',
-        'image/bmp', 'image/tiff', 'image/avif',
-        'image/x-icon', 'image/vnd.microsoft.icon'
-    ];
+    // 4. Handle other input types
 
-    if (!validTypes.includes(file.type)) {
-        errors.push(`Unsupported file type: ${file.type}`);
+    // 4a. Handle numbers - convert to string
+    if (typeof fileOrName === 'number') {
+        return getFileExtension(String(fileOrName));
     }
 
-    // Check file size
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
-        errors.push(`File too large: ${formatFileSize(file.size)} (max: ${formatFileSize(maxSize)})`);
-    } else if (file.size > 10 * 1024 * 1024) { // 10MB
-        warnings.push(`Large file: ${formatFileSize(file.size)} - processing may be slow`);
+    // 4b. Handle booleans - convert to string
+    if (typeof fileOrName === 'boolean') {
+        return getFileExtension(String(fileOrName));
     }
 
-    // Check filename
-    const invalidChars = /[<>:"/\\|?*]/;
-    if (invalidChars.test(file.name)) {
-        warnings.push('Filename contains invalid characters');
+    // 4c. Handle objects with toString method
+    if (typeof fileOrName === 'object') {
+        try {
+            // Check if it has a toString method
+            if (fileOrName.toString && typeof fileOrName.toString === 'function') {
+                const str = fileOrName.toString();
+                // Only use if it's not the default Object toString
+                if (str !== '[object Object]') {
+                    return getFileExtension(str);
+                }
+            }
+        } catch (e) {
+            // Ignore conversion errors
+        }
     }
 
-    return {
-        valid: errors.length === 0,
-        errors,
-        warnings
-    };
+    // 5. Log warning for debugging (only in development)
+    if (process.env.NODE_ENV === 'development') {
+        console.warn('getFileExtension received unexpected input:', {
+            type: typeof fileOrName,
+            value: fileOrName,
+            constructor: fileOrName?.constructor?.name
+        });
+    }
+
+    return 'unknown';
 }
 
 /**
@@ -558,14 +765,14 @@ export async function createThumbnail(imageOrFile, maxSize = 200) {
 
     return new Promise((resolve, reject) => {
         // Special handling for favicons
-        if (file.type === 'image/x-icon' || file.type === 'image/vnd.microsoft.icon') {
+        if (file.type === ImageMimeTypes.ICO || file.type === ImageMimeTypes.MICROSOFT_ICO) {
             // Use a default favicon icon as thumbnail
             resolve('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzM4ODJlZiIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iNjAiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxMDAiIHI9IjQwIiBmaWxsPSIjMzg4MmVmIi8+PC9zdmc+');
             return;
         }
 
         // Special handling for SVG
-        if (file.type === 'image/svg+xml') {
+        if (file.type === ImageMimeTypes.SVG) {
             // For SVG, return as-is
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
@@ -598,7 +805,7 @@ export async function createThumbnail(imageOrFile, maxSize = 200) {
             ctx.drawImage(img, 0, 0, width, height);
 
             // Convert to Data URL
-            const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+            const thumbnail = canvas.toDataURL(ImageMimeTypes.JPEG, 0.7);
 
             // Clean up
             URL.revokeObjectURL(objectUrl);
@@ -684,7 +891,7 @@ export async function analyzeForOptimization(file) {
     }
 
     // Format-based scoring
-    const modernFormats = ['webp', 'avif', 'svg'];
+    const modernFormats = [FileExtensions.WEBP, FileExtensions.AVIF, FileExtensions.SVG];
     const currentFormat = getFileExtension(file);
     if (!modernFormats.includes(currentFormat)) {
         score += 20;
@@ -692,7 +899,7 @@ export async function analyzeForOptimization(file) {
     }
 
     // Transparency consideration
-    if (transparency && currentFormat === 'jpg') {
+    if (transparency && currentFormat === FileExtensions.JPG) {
         score += 10;
         analysis.recommendations.push('JPEG with transparency - convert to PNG or WebP');
     }
@@ -728,7 +935,7 @@ export function getOptimizationPreset(useCase) {
         },
         'web-aggressive': {
             quality: 70,
-            format: 'webp',
+            format: FileExtensions.WEBP,
             maxDisplayWidth: 800,
             compressionMode: 'aggressive',
             stripMetadata: true,
@@ -736,7 +943,7 @@ export function getOptimizationPreset(useCase) {
         },
         'social-media': {
             quality: 90,
-            format: 'jpg',
+            format: FileExtensions.JPG,
             maxDisplayWidth: 1080,
             compressionMode: 'balanced',
             stripMetadata: false, // Keep metadata for social
@@ -744,7 +951,7 @@ export function getOptimizationPreset(useCase) {
         },
         'ecommerce': {
             quality: 92,
-            format: 'webp',
+            format: FileExtensions.WEBP,
             maxDisplayWidth: 1200,
             compressionMode: 'balanced',
             stripMetadata: true,
@@ -753,14 +960,14 @@ export function getOptimizationPreset(useCase) {
         },
         'favicon': {
             quality: 100,
-            format: 'ico',
+            format: FileExtensions.ICO,
             compressionMode: 'balanced',
             icoSizes: [16, 32, 48, 64],
             description: 'Favicon generation'
         },
         'print-ready': {
             quality: 100,
-            format: 'png',
+            format: FileExtensions.PNG,
             compressionMode: 'balanced',
             lossless: true,
             stripMetadata: false,
@@ -768,7 +975,7 @@ export function getOptimizationPreset(useCase) {
         },
         'mobile-optimized': {
             quality: 75,
-            format: 'webp',
+            format: FileExtensions.WEBP,
             maxDisplayWidth: 800,
             compressionMode: 'aggressive',
             stripMetadata: true,
@@ -793,23 +1000,23 @@ export function calculateOptimizationSavings(originalSize, optimizationSettings)
 
     // Format reduction
     switch (format) {
-        case 'webp':
+        case FileExtensions.WEBP:
             estimatedSize *= 0.7;
             reductionFactors.push('WebP format: 30% reduction');
             break;
-        case 'avif':
+        case FileExtensions.AVIF:
             estimatedSize *= 0.6;
             reductionFactors.push('AVIF format: 40% reduction');
             break;
-        case 'jpg':
+        case FileExtensions.JPG:
             estimatedSize *= 0.8;
             reductionFactors.push('JPEG format: 20% reduction');
             break;
-        case 'png':
+        case FileExtensions.PNG:
             estimatedSize *= 0.9;
             reductionFactors.push('PNG format: 10% reduction');
             break;
-        case 'svg':
+        case FileExtensions.SVG:
             estimatedSize *= 0.3;
             reductionFactors.push('SVG format: 70% reduction');
             break;
@@ -886,7 +1093,7 @@ export async function createOptimizationPreview(file, optimizationSettings) {
 
                 // Create preview with reduced quality
                 const previewQuality = Math.min(0.7, optimizationSettings.quality / 100 * 0.8);
-                const previewDataURL = canvas.toDataURL('image/jpeg', previewQuality);
+                const previewDataURL = canvas.toDataURL(ImageMimeTypes.JPEG, previewQuality);
 
                 resolve(previewDataURL);
             } catch (error) {
@@ -945,7 +1152,7 @@ export async function generateOptimizationComparison(originalFile, optimizedFile
  */
 export function needsFormatConversion(file) {
     const extension = getFileExtension(file);
-    const modernFormats = ['webp', 'avif', 'svg'];
+    const modernFormats = [FileExtensions.WEBP, FileExtensions.AVIF, FileExtensions.SVG];
     return !modernFormats.includes(extension);
 }
 
@@ -957,20 +1164,20 @@ export function needsFormatConversion(file) {
 export function getRecommendedFormat(file) {
     const extension = getFileExtension(file);
 
-    if (extension === 'svg') return 'svg';
-    if (extension === 'ico') return 'ico';
+    if (extension === FileExtensions.SVG) return FileExtensions.SVG;
+    if (extension === FileExtensions.ICO) return FileExtensions.ICO;
 
     // Check if image has transparency
-    if (file.type === 'image/png' || file.type === 'image/webp') {
-        return 'webp'; // WebP supports transparency
+    if (file.type === ImageMimeTypes.PNG || file.type === ImageMimeTypes.WEBP) {
+        return FileExtensions.WEBP; // WebP supports transparency
     }
 
     // For large images, recommend AVIF
     if (file.size > 2 * 1024 * 1024) {
-        return 'avif';
+        return FileExtensions.AVIF;
     }
 
-    return 'webp'; // Default to WebP for good balance
+    return FileExtensions.WEBP; // Default to WebP for good balance
 }
 
 /**
@@ -1003,35 +1210,35 @@ export async function getOptimizationStats(file) {
  */
 export function getFormatPriorities(browserSupport = ['modern', 'legacy']) {
     const formats = {
-        'avif': {
+        [FileExtensions.AVIF]: {
             quality: 0.9,
             browserSupport: browserSupport.includes('modern') ? 0.9 : 0.7,
             compression: 0.8,
             supportsTransparency: true,
             maxQuality: 63 // AVIF has different quality scale
         },
-        'webp': {
+        [FileExtensions.WEBP]: {
             quality: 0.8,
             browserSupport: browserSupport.includes('legacy') ? 0.9 : 0.98,
             compression: 0.7,
             supportsTransparency: true,
             maxQuality: 100
         },
-        'jpg': {
+        [FileExtensions.JPG]: {
             quality: 0.7,
             browserSupport: 1.0,
             compression: 0.6,
             supportsTransparency: false,
             maxQuality: 100
         },
-        'png': {
+        [FileExtensions.PNG]: {
             quality: 0.9,
             browserSupport: 1.0,
             compression: 0.5,
             supportsTransparency: true,
             maxQuality: 100
         },
-        'ico': {
+        [FileExtensions.ICO]: {
             quality: 1.0,
             browserSupport: 1.0,
             compression: 0.5,
@@ -1136,9 +1343,76 @@ function generateAISummary(capabilities) {
  * @returns {boolean} True if LemGendImage instance
  */
 export function isLemGendImage(obj) {
-    // Simple check - this avoids circular dependency
     return obj &&
         typeof obj === 'object' &&
         obj.constructor &&
         obj.constructor.name === 'LemGendImage';
+}
+
+/**
+ * Get aspect ratio string from dimensions
+ * @param {number} width - Image width
+ * @param {number} height - Image height
+ * @returns {string} Aspect ratio string (e.g., "16:9")
+ */
+export function getAspectRatioString(width, height) {
+    if (!width || !height) return 'unknown';
+
+    const aspectRatio = width / height;
+
+    // Common aspect ratios with tolerance
+    const commonRatios = {
+        1: AspectRatios.SQUARE,
+        1.333: AspectRatios.FOUR_THREE,
+        1.5: AspectRatios.THREE_TWO,
+        1.618: AspectRatios.SIXTEEN_TEN,
+        1.778: AspectRatios.SIXTEEN_NINE,
+        2.333: AspectRatios.TWENTYONE_NINE,
+        0.75: AspectRatios.THREE_FOUR,
+        0.667: AspectRatios.TWO_THREE
+    };
+
+    // Find closest common ratio
+    let closestRatio = null;
+    let minDifference = Infinity;
+
+    for (const [ratio, ratioString] of Object.entries(commonRatios)) {
+        const difference = Math.abs(aspectRatio - parseFloat(ratio));
+        if (difference < minDifference && difference < 0.05) { // 5% tolerance
+            minDifference = difference;
+            closestRatio = ratioString;
+        }
+    }
+
+    return closestRatio || `${Math.round(aspectRatio * 100) / 100}:1`;
+}
+/**
+ * Get image outputs from LemGendImage or similar object
+ * @param {Object} image - Image object
+ * @returns {Array} Array of output objects
+ */
+export function getImageOutputs(image) {
+    if (!image) return [];
+
+    if (typeof image.getAllOutputs === 'function') {
+        return image.getAllOutputs();
+    } else if (image.outputs && typeof image.outputs.get === 'function') {
+        // Map object
+        return Array.from(image.outputs.values());
+    } else if (Array.isArray(image.outputs)) {
+        return image.outputs;
+    } else if (image.file && image.file instanceof File) {
+        // Simple file object
+        return [{
+            file: image.file,
+            format: getFileExtension(image.file),
+            dimensions: image.width && image.height ?
+                { width: image.width, height: image.height } :
+                null,
+            size: image.file.size,
+            metadata: image.metadata || {}
+        }];
+    }
+
+    return [];
 }
