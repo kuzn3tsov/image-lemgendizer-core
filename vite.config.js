@@ -1,3 +1,4 @@
+// vite.config.js
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
@@ -5,27 +6,28 @@ export default defineConfig({
     build: {
         lib: {
             entry: resolve(__dirname, 'src/index.js'),
+            name: 'ImageLemgendizer',
             formats: ['es', 'cjs'],
             fileName: (format) => {
-                switch (format) {
-                    case 'es': return 'index.es.js';
-                    case 'cjs': return 'index.cjs.js';
-                    default: return `index.${format}.js`;
-                }
+                if (format === 'es') return 'index.es.js';
+                if (format === 'cjs') return 'index.cjs.js';
+                return `index.${format}.js`;
             }
         },
         rollupOptions: {
             external: ['jszip'],
-            onwarn(warning, warn) {
-                // Suppress dynamic import warnings
-                if (warning.message.includes('dynamically imported')) return;
-                warn(warning);
-            },
             output: {
-                exports: 'named'
+                exports: 'named',
+                preserveModules: false, // Bundle everything into single files
+                globals: {
+                    jszip: 'JSZip'
+                }
             }
-        },
-        outDir: 'dist',
-        sourcemap: true
+        }
+    },
+    resolve: {
+        alias: {
+            '@': resolve(__dirname, 'src')
+        }
     }
 });
