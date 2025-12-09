@@ -4,7 +4,6 @@
 import {
     TemplateCategories,
     TemplateCategoryKeys,
-    ImageMimeTypes,
     FileExtensions,
     AspectRatios
 } from '../constants/sharedConstants.js';
@@ -1220,21 +1219,33 @@ export const LemGendTemplates = {
     ],
 
     // Categorized templates for easy access
-    [TemplateCategories.WEB]: [],
-    [TemplateCategories.SOCIAL]: [],
-    [TemplateCategories.LOGO]: [],
-    [TemplateCategories.ECOMMERCE]: [],
-    [TemplateCategories.PRINT]: [],
-    [TemplateCategories.FLEXIBLE]: [],
-    [TemplateCategories.FAVICON]: [],
-    [TemplateCategories.MOBILE]: [],
-    [TemplateCategories.GENERAL]: []
+    // Initialize ALL category arrays dynamically
+    ...(() => {
+        const categoryArrays = {};
+
+        // Get all unique categories from TemplateCategories object
+        const allCategories = new Set([
+            ...Object.values(TemplateCategories),
+            ...TemplateCategoryKeys
+        ]);
+
+        // Initialize empty arrays for all categories
+        allCategories.forEach(category => {
+            categoryArrays[category] = [];
+        });
+
+        return categoryArrays;
+    })()
 };
 
 // Initialize categorized arrays
 LemGendTemplates.ALL.forEach(template => {
     const category = template.category;
-    if (category && TemplateCategoryKeys.includes(category) && LemGendTemplates[category]) {
+
+    if (category && TemplateCategoryKeys.includes(category)) {
+        if (!LemGendTemplates[category]) {
+            LemGendTemplates[category] = [];
+        }
         LemGendTemplates[category].push(template);
     }
 

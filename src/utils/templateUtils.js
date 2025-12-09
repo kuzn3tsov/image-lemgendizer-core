@@ -5,6 +5,7 @@
 
 // Import shared utilities
 import { parseDimension, isVariableDimension } from './sharedUtils.js';
+import { LemGendTask } from '../tasks/LemGendTask.js';
 
 // Import template database
 import { LemGendTemplates } from '../templates/templateConfig.js';
@@ -47,6 +48,48 @@ export function getTemplatesByCategory(category) {
     return LemGendTemplates.ALL.filter(template =>
         template.category?.toLowerCase() === normalizedCategory
     );
+}
+
+/**
+ * Get all unique categories with template counts
+ */
+export function getAllCategories() {
+    const categories = {};
+    LemGendTemplates.ALL.forEach(template => {
+        const category = template.category || 'general';
+        categories[category] = (categories[category] || 0) + 1;
+    });
+
+    return Object.keys(categories)
+        .filter(key => categories[key] > 0)
+        .sort();
+}
+
+/**
+ * Get library information
+ */
+export function getLibraryInfo() {
+    const stats = getTemplateStats();
+
+    return {
+        name: 'LemGendary Image Processor',
+        version: '3.0.0',
+        description: 'Advanced batch image processing library with template support',
+        templates: stats.total || 0,
+        categories: stats.categoryCount || 0,
+        platforms: stats.platformCount || 0,
+        flexibleTemplates: stats.flexible || 0,
+        lastUpdated: stats.generatedAt,
+        features: [
+            'Batch processing',
+            'Template-based processing',
+            'Smart cropping',
+            'Optimization',
+            'Rename patterns',
+            'Favicon generation',
+            'Flexible templates'
+        ]
+    };
 }
 
 /**
@@ -360,6 +403,72 @@ export function getTemplateStats(templateOrId) {
     };
 
     return stats;
+}
+
+/**
+ * Create a task from template configuration
+ */
+export function createTaskFromTemplate(template, options = {}) {
+    const task = new LemGendTask(
+        options.taskName || `Template: ${template.displayName}`,
+        options.description || template.description || ''
+    );
+
+    const widthInfo = parseDimension(template.width);
+    const heightInfo = parseDimension(template.height);
+
+    // Add crop if required
+    if (template.requiresCrop && widthInfo.value && heightInfo.value) {
+        task.addCrop(widthInfo.value, heightInfo.value, options.cropMode || 'smart');
+    }
+
+    // Add resize for variable dimensions
+    if (widthInfo.isVariable && heightInfo.value) {
+        task.addResize(heightInfo.value, 'height');
+    } else if (heightInfo.isVariable && widthInfo.value) {
+        task.addResize(widthInfo.value, 'width');
+    } else if (widthInfo.value && heightInfo.value) {
+        task.addResize(Math.max(widthInfo.value, heightInfo.value), 'longest');
+    }
+
+    // Add optimization
+    const quality = options.quality || 85;
+    const format = options.format || template.recommendedFormats?.[0] || 'auto';
+
+    task.addOptimize(quality, format, {
+        compressionMode: options.compressionMode || 'adaptive',
+        preserveTransparency: template.recommendedFormats?.some(f =>
+            ['png', 'webp', 'svg'].includes(f.toLowerCase())
+        )
+    });
+
+    // Add rename if pattern provided
+    if (options.renamePattern) {
+        task.addRename(options.renamePattern, options.renameStartIndex || 1);
+    }
+
+    return task;
+}
+
+/**
+ * Get validation summary for template compatibility
+ */
+export function getTemplateValidationSummary(validation) {
+    if (!validation) return 'No validation performed';
+
+    const { compatible, errors, warnings, suggestions } = validation;
+
+    if (!compatible && errors.length > 0) {
+        return `❌ Incompatible: ${errors.map(e => e.message).join(', ')}`;
+    }
+
+    let summary = compatible ? '✅ Compatible' : '⚠️ Has issues';
+
+    if (warnings.length > 0) {
+        summary += ` (${warnings.length} warning${warnings.length !== 1 ? 's' : ''})`;
+    }
+
+    return summary;
 }
 
 /**

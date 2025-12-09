@@ -11,29 +11,29 @@ export { LemGendTask } from './tasks/LemGendTask.js';
 // Resize Processor
 export {
     LemGendaryResize,
-    createResizeProcessor,  // NEW
-    quickResize             // NEW
+    createResizeProcessor,
+    quickResize
 } from './processors/LemGendaryResize.js';
 
 // Crop Processor
 export {
     LemGendaryCrop,
-    createCropProcessor,    // NEW
-    quickCrop              // NEW
+    createCropProcessor,
+    quickCrop
 } from './processors/LemGendaryCrop.js';
 
 // Optimize Processor
 export {
     LemGendaryOptimize,
-    createOptimizationProcessor,  // NEW
-    quickOptimize                 // NEW
+    createOptimizationProcessor,
+    quickOptimize
 } from './processors/LemGendaryOptimize.js';
 
 // Rename Processor
 export {
     LemGendaryRename,
-    createRenameProcessor,  // NEW
-    quickRename            // NEW
+    createRenameProcessor,
+    quickRename
 } from './processors/LemGendaryRename.js';
 
 // ===== TEMPLATES =====
@@ -115,16 +115,20 @@ export {
     validateTaskLogic
 } from './utils/validationUtils.js';
 
-// Template Utilities
+// ===== TEMPLATE UTILITIES =====
 export {
     getTemplateById,
     getAllPlatforms,
     getTemplatesByCategory,
+    getAllCategories,
+    getLibraryInfo,
     getFlexibleTemplates,
     validateTemplateCompatibility,
     getTemplateAspectRatio,
     getTemplateAspectRatioString,
-    getTemplateStats
+    getTemplateStats,
+    createTaskFromTemplate,
+    getTemplateValidationSummary
 } from './utils/templateUtils.js';
 
 // Shared Utilities
@@ -475,15 +479,6 @@ export function createRename(options = {}) {
 }
 
 /**
- * Create a task from template name
- * @param {string} templateName - Template name
- * @returns {LemGendTask} Task instance
- */
-export function createTaskFromTemplate(templateName) {
-    return LemGendTask.fromTemplate(templateName);
-}
-
-/**
  * Quick process helper for common operations
  */
 export const QuickProcess = {
@@ -519,118 +514,4 @@ export const QuickProcess = {
         return quickRename(filename, pattern, variables, options);
     }
 };
-
-// ===== LIBRARY INFO =====
-export function getLibraryInfo() {
-    return {
-        name: 'LemGendary Image Processor',
-        version: '3.0.0',
-        description: 'Batch image processing with intelligent operations, AI-powered smart cropping, and advanced optimization',
-        author: 'LemGenda',
-        license: 'MIT',
-        homepage: 'https://github.com/lemgenda/image-lemgendizer-core',
-
-        // Updated processors section
-        processors: {
-            LemGendaryResize: {
-                name: 'LemGendaryResize',
-                description: 'Intelligent image resizing using longest dimension',
-                version: '1.2.1',
-                helpers: ['createResizeProcessor', 'quickResize'] // NEW
-            },
-            LemGendaryCrop: {
-                name: 'LemGendaryCrop',
-                description: 'AI-powered smart cropping with face and object detection',
-                version: '2.0.0',
-                helpers: ['createCropProcessor', 'quickCrop'] // NEW
-            },
-            LemGendaryOptimize: {
-                name: 'LemGendaryOptimize',
-                description: 'Advanced image optimization with intelligent format selection and adaptive compression',
-                version: '2.0.0',
-                helpers: ['createOptimizationProcessor', 'quickOptimize'] // NEW
-            },
-            LemGendaryRename: {
-                name: 'LemGendaryRename',
-                description: 'Batch renaming with pattern support',
-                version: '1.0.0',
-                helpers: ['createRenameProcessor', 'quickRename'] // NEW
-            },
-            LemGendTask: {
-                name: 'LemGendTask',
-                description: 'Unified processing pipeline with favicon support',
-                version: '2.2.0',
-                helpers: ['fromTemplate', 'createTaskFromTemplate'] // NEW
-            }
-        },
-
-        // Updated template utilities
-        templateUtilities: {
-            getTemplateById: 'Get template by ID',
-            validateTemplateCompatibility: 'Validate template against image',
-            parseDimension: 'Parse dimension strings',
-            getAllPlatforms: 'Get all available platforms',
-            getTemplateAspectRatio: 'Calculate template aspect ratio',
-            getTemplateStats: 'Get template statistics (overall or specific)',
-            getTemplatesByCategory: 'Get templates by category', // NEW
-            getFlexibleTemplates: 'Get flexible templates' // NEW
-        },
-
-        // Updated validation utilities
-        validationUtilities: {
-            validateTask: 'Validate task configuration',
-            validateTaskSteps: 'Validate task steps', // NEW
-            validateTaskLogic: 'Validate task logic', // NEW
-            validateImage: 'Validate image file',
-            validateResize: 'Validate resize options',
-            validateCrop: 'Validate crop options',
-            validateOptimization: 'Validate optimization options',
-            validateRenamePattern: 'Validate rename pattern',
-            getValidationSummary: 'Get validation summary'
-        },
-
-        // New helpers section
-        helperFunctions: {
-            createResize: 'Create resize processor with options',
-            createCrop: 'Create crop processor with options',
-            createOptimize: 'Create optimization processor with options',
-            createRename: 'Create rename processor with options',
-            createTaskFromTemplate: 'Create task from template name',
-            QuickProcess: 'Quick processing helpers for common operations'
-        },
-
-        features: [
-            'Smart AI cropping',
-            'Face detection',
-            'Object detection',
-            'Saliency detection',
-            'Entropy analysis',
-            'Content-aware resizing',
-            'Advanced optimization',
-            'Intelligent format selection',
-            'Adaptive compression',
-            'Progressive loading',
-            'Batch processing',
-            'Favicon generation',
-            'Multiple format support',
-            'Optimization-first ZIP creation',
-            'Flexible dimension templates',
-            'Variable height/width support',
-            'Template-based processing',
-            'Validation and error handling',
-            'Statistics tracking',
-            'Order optimization'
-        ],
-
-        // Add statistics
-        stats: {
-            totalProcessors: 4,
-            totalUtilities: 6,
-            totalFunctions: 45,
-            supportedFormats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp', 'tiff', 'avif', 'ico'],
-            supportedOperations: ['resize', 'crop', 'optimize', 'rename', 'template', 'favicon'],
-            lastUpdated: new Date().toISOString()
-        }
-    };
-}
 

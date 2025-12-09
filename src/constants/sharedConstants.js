@@ -214,18 +214,12 @@ export const TemplateCategories = {
     PRINT: 'print',
     FAVICON: 'favicon',
     MOBILE: 'mobile',
+    DESKTOP: 'desktop',
     GENERAL: 'general',
     FLEXIBLE: 'flexible'
 };
 
-export const TemplateCategoryKeys = {
-    WEB: 'web',
-    SOCIAL: 'social',
-    LOGO: 'logo',
-    PRINT: 'print',
-    MOBILE: 'mobile',
-    DESKTOP: 'desktop'
-};
+export const TemplateCategoryKeys = ['web', 'social', 'logo', 'ecommerce', 'print', 'favicon', 'mobile', 'desktop', 'general', 'flexible'];
 
 // ===== IMAGE MIME TYPES =====
 export const ImageMimeTypes = {
