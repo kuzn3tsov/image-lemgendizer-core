@@ -1066,21 +1066,6 @@ export const LemGendTemplates = {
             supportsFlexible: false
         },
         {
-            id: 'logo-favicon',
-            displayName: 'Favicon',
-            description: 'Small icon for browser tabs',
-            width: '16px',
-            height: '16px',
-            category: TemplateCategories.LOGO,
-            recommendedFormats: [FileExtensions.ICO, FileExtensions.PNG, FileExtensions.SVG],
-            platforms: ['web', 'browser'],
-            commonUses: ['website-icon', 'browser-tab'],
-            requiresCrop: true,
-            minWidth: 16,
-            minHeight: 16,
-            supportsFlexible: false
-        },
-        {
             id: 'logo-app-icon',
             displayName: 'App Icon',
             description: 'Icon for mobile applications',
