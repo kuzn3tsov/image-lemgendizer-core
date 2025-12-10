@@ -1,6 +1,7 @@
 /**
  * Template utility functions
  * @module utils/templateUtils
+ * @version 3.0.0
  */
 
 // Import shared utilities
@@ -9,6 +10,18 @@ import { LemGendTask } from '../tasks/LemGendTask.js';
 
 // Import template database
 import { LemGendTemplates } from '../templates/templateConfig.js';
+
+// Import shared constants
+import {
+    TemplateCategories,
+    AspectRatios,
+    FileExtensions,
+    ImageMimeTypes,
+    OptimizationFormats,
+    CompressionModes,
+    Defaults,
+    SeverityLevels
+} from '../constants/sharedConstants.js';
 
 /**
  * Get template by ID or name
@@ -56,7 +69,7 @@ export function getTemplatesByCategory(category) {
 export function getAllCategories() {
     const categories = {};
     LemGendTemplates.ALL.forEach(template => {
-        const category = template.category || 'general';
+        const category = template.category || TemplateCategories.GENERAL;
         categories[category] = (categories[category] || 0) + 1;
     });
 
@@ -133,14 +146,14 @@ export function getTemplateAspectRatioString(template) {
 
     // Common aspect ratios
     const commonRatios = {
-        1: '1:1',           // Square
-        1.333: '4:3',       // Standard
-        1.5: '3:2',         // Classic
-        1.618: '16:10',     // Golden
-        1.778: '16:9',      // Widescreen
-        2.333: '21:9',      // Ultra-wide
-        0.75: '3:4',        // Portrait
-        0.667: '2:3'        // Tall
+        1: AspectRatios.SQUARE,
+        1.333: AspectRatios.FOUR_THREE,
+        1.5: AspectRatios.THREE_TWO,
+        1.618: AspectRatios.SIXTEEN_TEN,
+        1.778: AspectRatios.SIXTEEN_NINE,
+        2.333: AspectRatios.TWENTYONE_NINE,
+        0.75: AspectRatios.THREE_FOUR,
+        0.667: AspectRatios.TWO_THREE
     };
 
     // Find closest common ratio
@@ -214,7 +227,7 @@ function getTemplateSpecificStats(templateOrId) {
         id: template.id,
         name: template.displayName || 'Unnamed Template',
         description: template.description || '',
-        category: template.category || 'general',
+        category: template.category || TemplateCategories.GENERAL,
 
         // Dimension analysis
         dimensions: {
@@ -246,15 +259,15 @@ function getTemplateSpecificStats(templateOrId) {
             recommended: template.recommendedFormats || [],
             primaryFormat: template.recommendedFormats?.[0],
             supportsTransparency: template.recommendedFormats?.some(f =>
-                ['png', 'webp', 'svg', 'gif'].includes(f.toLowerCase())
+                [FileExtensions.PNG, FileExtensions.WEBP, FileExtensions.SVG, FileExtensions.GIF].includes(f.toLowerCase())
             ),
-            supportsAnimation: template.recommendedFormats?.includes('gif'),
-            isVector: template.recommendedFormats?.includes('svg'),
+            supportsAnimation: template.recommendedFormats?.includes(FileExtensions.GIF),
+            isVector: template.recommendedFormats?.includes(FileExtensions.SVG),
             isWebOptimized: template.recommendedFormats?.some(f =>
-                ['webp', 'avif'].includes(f.toLowerCase())
+                [FileExtensions.WEBP, FileExtensions.AVIF].includes(f.toLowerCase())
             ),
             isPrintOptimized: template.recommendedFormats?.some(f =>
-                ['pdf', 'tiff', 'eps'].includes(f.toLowerCase())
+                [FileExtensions.PDF, FileExtensions.TIFF, FileExtensions.EPS].includes(f.toLowerCase())
             )
         },
 
@@ -301,7 +314,7 @@ export function getTemplateStats(templateOrId) {
     // Count by category
     const categories = {};
     allTemplates.forEach(template => {
-        const category = template.category || 'general';
+        const category = template.category || TemplateCategories.GENERAL;
         categories[category] = (categories[category] || 0) + 1;
     });
 
@@ -392,13 +405,13 @@ export function getTemplateStats(templateOrId) {
             averageMinHeight: Math.round(allTemplates.reduce((sum, t) => sum + (t.minHeight || 0), 0) / allTemplates.length),
             templatesWithCrop: allTemplates.filter(t => t.requiresCrop).length,
             templatesWithTransparency: allTemplates.filter(t =>
-                t.recommendedFormats?.some(f => ['png', 'webp', 'svg'].includes(f))
+                t.recommendedFormats?.some(f => [FileExtensions.PNG, FileExtensions.WEBP, FileExtensions.SVG].includes(f))
             ).length
         },
 
         // Timestamp and version
         generatedAt: new Date().toISOString(),
-        version: '2.0.0',
+        version: '3.0.0',
         templateCount: allTemplates.length
     };
 
@@ -432,13 +445,13 @@ export function createTaskFromTemplate(template, options = {}) {
     }
 
     // Add optimization
-    const quality = options.quality || 85;
-    const format = options.format || template.recommendedFormats?.[0] || 'auto';
+    const quality = options.quality || Defaults.OPTIMIZATION_QUALITY;
+    const format = options.format || template.recommendedFormats?.[0] || OptimizationFormats.AUTO;
 
     task.addOptimize(quality, format, {
-        compressionMode: options.compressionMode || 'adaptive',
+        compressionMode: options.compressionMode || CompressionModes.ADAPTIVE,
         preserveTransparency: template.recommendedFormats?.some(f =>
-            ['png', 'webp', 'svg'].includes(f.toLowerCase())
+            [FileExtensions.PNG, FileExtensions.WEBP, FileExtensions.SVG].includes(f.toLowerCase())
         )
     });
 
@@ -501,7 +514,7 @@ export function validateTemplateCompatibility(template, imageInfo) {
             result.warnings.push({
                 code: 'SMALL_WIDTH',
                 message: `Image width (${width}px) is ${widthInfo.value - width}px smaller than template width (${widthInfo.value}px)`,
-                severity: 'warning'
+                severity: SeverityLevels.WARNING
             });
             result.suggestions.push('Consider using a larger source image or enable upscaling');
         }
@@ -510,7 +523,7 @@ export function validateTemplateCompatibility(template, imageInfo) {
             result.warnings.push({
                 code: 'SMALL_HEIGHT',
                 message: `Image height (${height}px) is ${heightInfo.value - height}px smaller than template height (${heightInfo.value}px)`,
-                severity: 'warning'
+                severity: SeverityLevels.WARNING
             });
             result.suggestions.push('Consider using a larger source image or enable upscaling');
         }
@@ -525,7 +538,7 @@ export function validateTemplateCompatibility(template, imageInfo) {
                 result.warnings.push({
                     code: 'ASPECT_MISMATCH',
                     message: `Aspect ratio mismatch: Template ${templateAspect.toFixed(2)}:1 vs Image ${imageAspect.toFixed(2)}:1`,
-                    severity: 'warning'
+                    severity: SeverityLevels.WARNING
                 });
                 result.suggestions.push('Enable smart cropping to match template aspect ratio');
             }
@@ -536,7 +549,7 @@ export function validateTemplateCompatibility(template, imageInfo) {
             result.warnings.push({
                 code: 'SMALL_HEIGHT',
                 message: `Image height (${height}px) smaller than template minimum height (${heightInfo.value}px)`,
-                severity: 'warning'
+                severity: SeverityLevels.WARNING
             });
         }
 
@@ -544,7 +557,7 @@ export function validateTemplateCompatibility(template, imageInfo) {
             result.warnings.push({
                 code: 'SMALL_WIDTH',
                 message: `Image width (${width}px) smaller than template minimum width (${widthInfo.value}px)`,
-                severity: 'warning'
+                severity: SeverityLevels.WARNING
             });
         }
     }
@@ -554,17 +567,17 @@ export function validateTemplateCompatibility(template, imageInfo) {
         const imageFormat = imageInfo.format.toLowerCase();
         const recommended = template.recommendedFormats.map(f => f.toLowerCase());
 
-        if (!recommended.includes(imageFormat) && !recommended.includes('original')) {
+        if (!recommended.includes(imageFormat) && !recommended.includes(OptimizationFormats.ORIGINAL)) {
             result.suggestions.push(`Consider converting from ${imageFormat} to ${recommended[0]} for better optimization`);
         }
     }
 
     // Check for transparency if converting to JPEG
-    if (imageInfo.hasTransparency && template.recommendedFormats?.includes('jpg')) {
+    if (imageInfo.hasTransparency && template.recommendedFormats?.includes(FileExtensions.JPG)) {
         result.warnings.push({
             code: 'TRANSPARENCY_LOSS',
             message: 'Image has transparency but template recommends JPEG format',
-            severity: 'warning'
+            severity: SeverityLevels.WARNING
         });
         result.suggestions.push('Add a background color or use PNG/WebP format to preserve transparency');
     }

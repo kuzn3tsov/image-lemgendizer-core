@@ -3,9 +3,9 @@
  * @class
  */
 
-// Import validation utilities - KEEP ORIGINAL
+// Import validation utilities
 import { validateCrop } from '../utils/validationUtils.js';
-// Import constants - ADD NEW
+// Import constants
 import {
     CropModes,
     ResizeAlgorithms,
@@ -464,7 +464,7 @@ export class LemGendaryCrop {
     getInfo() {
         return {
             name: 'LemGendaryCrop',
-            version: '2.0.0',
+            version: '3.0.0',
             description: 'Intelligent image cropping with AI detection',
             modes: Object.values(CropModes),
             aiCapabilities: [CropModes.FACE, CropModes.OBJECT, CropModes.SALIENCY, CropModes.ENTROPY],
@@ -540,7 +540,7 @@ export class LemGendaryCrop {
         if (!this.options.upscale) {
             if (image.width < this.options.width || image.height < this.options.height) {
                 result.warnings.push({
-                    code: WarningCodes.IMAGE_TOO_SMALL,
+                    code: WarningCodes.SOURCE_TOO_SMALL,
                     message: `Image too small for target crop (${image.width}x${image.height} < ${this.options.width}x${this.options.height})`,
                     suggestion: 'Enable upscale option or use smaller crop dimensions',
                     severity: SeverityLevels.WARNING

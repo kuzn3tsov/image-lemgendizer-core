@@ -1,6 +1,7 @@
 /**
  * Image utility functions
  * @module utils/imageUtils
+ * @version 3.0.0
  */
 
 // Import shared constants
@@ -8,8 +9,53 @@ import {
     ImageMimeTypes,
     FileExtensions,
     AspectRatios,
-    Defaults
+    Defaults,
+    ResizeModes,
+    ResizeAlgorithms,
+    OptimizationFormats,
+    CompressionModes,
+    BrowserSupport,
+    QualityTargets,
+    ErrorCodes,
+    WarningCodes
 } from '../constants/sharedConstants.js';
+
+// Dynamically import PDF.js
+let pdfjsLib = null;
+
+/**
+ * Load PDF.js library dynamically
+ */
+async function loadPDFJS() {
+    if (!pdfjsLib) {
+        try {
+            // Try to load from CDN first, then fallback to local
+            if (typeof window !== 'undefined' && window.pdfjsLib) {
+                pdfjsLib = window.pdfjsLib;
+            } else {
+                const pdfjsModule = await import('pdfjs-dist/build/pdf.mjs');
+                pdfjsLib = pdfjsModule;
+
+                // Set worker source
+                if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+                }
+            }
+        } catch (error) {
+            console.warn('PDF.js library not available. PDF processing limited.');
+            pdfjsLib = { available: false };
+        }
+    }
+    return pdfjsLib;
+}
+
+/**
+ * Check if PDF.js is available
+ */
+export async function isPDFJSAvailable() {
+    const pdfjs = await loadPDFJS();
+    return pdfjs && pdfjs !== { available: false } && pdfjs.getDocument;
+}
 
 /**
  * Get image dimensions from File
@@ -28,6 +74,14 @@ export async function getImageDimensions(file) {
             getIcoDimensions(file)
                 .then(resolve)
                 .catch(() => resolve({ width: 32, height: 32, orientation: 'square', aspectRatio: 1 }));
+            return;
+        }
+
+        // Special handling for PDF files
+        if (isPDF(file)) {
+            getPDFDimensions(file)
+                .then(resolve)
+                .catch(() => resolve({ width: 595, height: 842, orientation: 'portrait', aspectRatio: 595 / 842, isPDF: true }));
             return;
         }
 
@@ -64,6 +118,225 @@ export async function getImageDimensions(file) {
 }
 
 /**
+ * Get PDF dimensions using PDF.js
+ * @param {File} file - PDF file
+ * @returns {Promise<Object>} Dimensions object
+ */
+export async function getPDFDimensions(file) {
+    try {
+        const pdfjs = await loadPDFJS();
+
+        if (!pdfjs || !pdfjs.getDocument) {
+            throw new Error('PDF.js library not available');
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1 });
+
+        const dimensions = {
+            width: viewport.width,
+            height: viewport.height,
+            orientation: viewport.width >= viewport.height ? 'landscape' : 'portrait',
+            aspectRatio: viewport.width / viewport.height,
+            isPDF: true,
+            pageCount: pdf.numPages,
+            hasPDFJS: true
+        };
+
+        return dimensions;
+    } catch (error) {
+        console.warn('Failed to get PDF dimensions with PDF.js:', error.message);
+        // Return default PDF dimensions
+        return {
+            width: 595,
+            height: 842,
+            orientation: 'portrait',
+            aspectRatio: 595 / 842,
+            isPDF: true,
+            pageCount: 1,
+            hasPDFJS: false
+        };
+    }
+}
+
+/**
+ * Convert PDF to image (first page preview)
+ * @param {File} file - PDF file
+ * @param {Object} options - Conversion options
+ * @returns {Promise<File>} Image file
+ */
+export async function convertPDFToImage(file, options = {}) {
+    const {
+        pageNumber = 1,
+        scale = 1.5,
+        format = FileExtensions.PNG,
+        quality = 0.9
+    } = options;
+
+    try {
+        const pdfjs = await loadPDFJS();
+
+        if (!pdfjs || !pdfjs.getDocument) {
+            throw new Error('PDF.js library not available');
+        }
+
+        // Load PDF document
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+        // Get specific page
+        const page = await pdf.getPage(Math.min(pageNumber, pdf.numPages));
+
+        // Set scale for rendering
+        const viewport = page.getViewport({ scale });
+
+        // Prepare canvas for rendering
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        // Render PDF page to canvas
+        await page.render({
+            canvasContext: context,
+            viewport: viewport
+        }).promise;
+
+        // Convert canvas to blob
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) {
+                        reject(new Error('Failed to create blob from canvas'));
+                        return;
+                    }
+
+                    const originalName = file.name.replace(/\.[^/.]+$/, '');
+                    const imageFile = new File(
+                        [blob],
+                        `${originalName}-page${pageNumber}.${format}`,
+                        { type: getMimeTypeFromExtension(format) }
+                    );
+
+                    resolve(imageFile);
+                },
+                getMimeTypeFromExtension(format),
+                quality
+            );
+        });
+    } catch (error) {
+        console.error('Failed to convert PDF to image:', error);
+        throw new Error(`PDF conversion failed: ${error.message}`);
+    }
+}
+
+/**
+ * Compress PDF file (basic implementation - would need server-side for actual compression)
+ * @param {File} file - PDF file
+ * @param {Object} options - Compression options
+ * @returns {Promise<File>} Compressed PDF file
+ */
+export async function compressPDF(file, options = {}) {
+    const { quality = 'medium' } = options;
+
+    console.warn('PDF compression requires server-side processing. Returning original file.');
+
+    // For now, return the original file
+    // In a production environment, you would:
+    // 1. Send to server for Ghostscript/PDFtk processing
+    // 2. Use a service worker with a PDF compression library
+
+    const originalName = file.name.replace(/\.[^/.]+$/, '');
+    const compressedName = `${originalName}-compressed.${FileExtensions.PDF}`;
+
+    return new File(
+        [file],
+        compressedName,
+        { type: ImageMimeTypes.PDF }
+    );
+}
+
+/**
+ * Extract text from PDF
+ * @param {File} file - PDF file
+ * @param {Object} options - Extraction options
+ * @returns {Promise<string>} Extracted text
+ */
+export async function extractTextFromPDF(file, options = {}) {
+    const { maxPages = 10 } = options;
+
+    try {
+        const pdfjs = await loadPDFJS();
+
+        if (!pdfjs || !pdfjs.getDocument) {
+            throw new Error('PDF.js library not available');
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+        let text = '';
+        const pagesToProcess = Math.min(pdf.numPages, maxPages);
+
+        for (let i = 1; i <= pagesToProcess; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const pageText = content.items.map(item => item.str).join(' ');
+            text += pageText + '\n\n';
+        }
+
+        return text.trim();
+    } catch (error) {
+        console.error('Failed to extract text from PDF:', error);
+        return '';
+    }
+}
+
+/**
+ * Get PDF information
+ * @param {File} file - PDF file
+ * @returns {Promise<Object>} PDF information
+ */
+export async function getPDFInfo(file) {
+    try {
+        const pdfjs = await loadPDFJS();
+
+        if (!pdfjs || !pdfjs.getDocument) {
+            throw new Error('PDF.js library not available');
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        const metadata = await pdf.getMetadata();
+
+        return {
+            pageCount: pdf.numPages,
+            title: metadata?.info?.Title || '',
+            author: metadata?.info?.Author || '',
+            subject: metadata?.info?.Subject || '',
+            keywords: metadata?.info?.Keywords || '',
+            creator: metadata?.info?.Creator || '',
+            producer: metadata?.info?.Producer || '',
+            creationDate: metadata?.info?.CreationDate || '',
+            modificationDate: metadata?.info?.ModDate || '',
+            isTagged: metadata?.info?.isTagged || false,
+            isLinearized: metadata?.info?.isLinearized || false,
+            fileSize: file.size
+        };
+    } catch (error) {
+        console.error('Failed to get PDF info:', error);
+        return {
+            pageCount: 1,
+            fileSize: file.size,
+            error: error.message
+        };
+    }
+}
+
+/**
  * Get MIME type from file extension
  * @param {string} filename - Filename or extension
  * @returns {string} MIME type
@@ -84,11 +357,11 @@ export function getMimeTypeFromExtension(filename) {
         [FileExtensions.TIF]: ImageMimeTypes.TIFF,
         [FileExtensions.AVIF]: ImageMimeTypes.AVIF,
         [FileExtensions.ICO]: ImageMimeTypes.ICO,
+        [FileExtensions.PDF]: ImageMimeTypes.PDF,
         [FileExtensions.EPS]: 'application/postscript',
-        [FileExtensions.PDF]: 'application/pdf',
 
         // Document formats
-        'pdf': 'application/pdf',
+        'pdf': ImageMimeTypes.PDF,
         'eps': 'application/postscript',
         'ai': 'application/postscript',
 
@@ -153,6 +426,7 @@ export function getExtensionFromMimeType(mimeType) {
         [ImageMimeTypes.AVIF]: FileExtensions.AVIF,
         [ImageMimeTypes.ICO]: FileExtensions.ICO,
         [ImageMimeTypes.MICROSOFT_ICO]: FileExtensions.ICO,
+        [ImageMimeTypes.PDF]: FileExtensions.PDF,
 
         // Document formats
         'application/pdf': 'pdf',
@@ -187,9 +461,9 @@ export function getExtensionFromMimeType(mimeType) {
 }
 
 /**
- * Check if MIME type is an image
+ * Check if MIME type is an image or PDF
  * @param {string} mimeType - MIME type to check
- * @returns {boolean} True if image MIME type
+ * @returns {boolean} True if image or PDF MIME type
  */
 export function isImageMimeType(mimeType) {
     const imageMimeTypes = [
@@ -202,14 +476,40 @@ export function isImageMimeType(mimeType) {
         ImageMimeTypes.TIFF,
         ImageMimeTypes.AVIF,
         ImageMimeTypes.ICO,
-        ImageMimeTypes.MICROSOFT_ICO
+        ImageMimeTypes.MICROSOFT_ICO,
+        ImageMimeTypes.PDF  // Include PDF
     ];
 
     return imageMimeTypes.includes(mimeType) || mimeType.startsWith('image/');
 }
 
 /**
- * Get allowed image MIME types for validation
+ * Check if file is a PDF document
+ * @param {File} file - File to check
+ * @returns {boolean} True if PDF document
+ */
+export function isPDF(file) {
+    return file.type === ImageMimeTypes.PDF ||
+        getFileExtension(file).toLowerCase() === FileExtensions.PDF;
+}
+
+/**
+ * Check if file is a vector format (PDF, SVG)
+ * @param {File} file - File to check
+ * @returns {boolean} True if vector format
+ */
+export function isVectorFormat(file) {
+    const extension = getFileExtension(file);
+    const vectorFormats = [
+        FileExtensions.PDF,
+        FileExtensions.SVG
+    ];
+    return vectorFormats.includes(extension.toLowerCase()) ||
+        file.type === ImageMimeTypes.PDF;
+}
+
+/**
+ * Get allowed image MIME types for validation (including PDF)
  * @returns {Array<string>} Array of allowed MIME types
  */
 export function getAllowedImageMimeTypes() {
@@ -223,7 +523,8 @@ export function getAllowedImageMimeTypes() {
         ImageMimeTypes.TIFF,
         ImageMimeTypes.AVIF,
         ImageMimeTypes.ICO,
-        ImageMimeTypes.MICROSOFT_ICO
+        ImageMimeTypes.MICROSOFT_ICO,
+        ImageMimeTypes.PDF  // Include PDF
     ];
 }
 
@@ -243,14 +544,16 @@ export function getExtensionPriorities() {
         [FileExtensions.JPEG]: 5,
         [FileExtensions.JPG]: 5,
 
+        // Document format
+        [FileExtensions.PDF]: 6,
+
         // Legacy formats
-        [FileExtensions.GIF]: 6,
-        [FileExtensions.BMP]: 7,
-        [FileExtensions.TIFF]: 8,
-        [FileExtensions.ICO]: 9,
+        [FileExtensions.GIF]: 7,
+        [FileExtensions.BMP]: 8,
+        [FileExtensions.TIFF]: 9,
+        [FileExtensions.ICO]: 10,
 
         // Other
-        'pdf': 10,
         'eps': 11
     };
 }
@@ -424,6 +727,15 @@ export async function resizeImage(file, width, height, format = FileExtensions.W
             return;
         }
 
+        // For PDF files, convert first page to image then resize
+        if (isPDF(file)) {
+            convertPDFToImage(file, { scale: 1 })
+                .then(imageFile => resizeImage(imageFile, width, height, format, quality))
+                .then(resolve)
+                .catch(reject);
+            return;
+        }
+
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
 
@@ -506,6 +818,15 @@ export async function resizeImage(file, width, height, format = FileExtensions.W
  */
 export async function cropImage(file, x, y, width, height, format = FileExtensions.WEBP, quality = 0.8) {
     return new Promise((resolve, reject) => {
+        // For PDF files, convert first page to image then crop
+        if (isPDF(file)) {
+            convertPDFToImage(file, { scale: 1 })
+                .then(imageFile => cropImage(imageFile, x, y, width, height, format, quality))
+                .then(resolve)
+                .catch(reject);
+            return;
+        }
+
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
 
@@ -577,15 +898,26 @@ export async function cropImage(file, x, y, width, height, format = FileExtensio
  * @param {string} mode - 'width', 'height', or 'auto'
  * @returns {Object} New dimensions
  */
-export function calculateAspectRatioFit(originalWidth, originalHeight, targetSize, mode = 'auto') {
-    if (mode === 'width') {
+export function calculateAspectRatioFit(originalWidth, originalHeight, targetSize, mode = ResizeModes.AUTO) {
+    if (mode === ResizeModes.WIDTH) {
         const newWidth = targetSize;
         const newHeight = Math.round((originalHeight / originalWidth) * targetSize);
         return { width: newWidth, height: newHeight };
-    } else if (mode === 'height') {
+    } else if (mode === ResizeModes.HEIGHT) {
         const newHeight = targetSize;
         const newWidth = Math.round((originalWidth / originalHeight) * targetSize);
         return { width: newWidth, height: newHeight };
+    } else if (mode === ResizeModes.LONGEST) {
+        // Use longest side
+        if (originalWidth >= originalHeight) {
+            const newWidth = targetSize;
+            const newHeight = Math.round((originalHeight / originalWidth) * targetSize);
+            return { width: newWidth, height: newHeight };
+        } else {
+            const newHeight = targetSize;
+            const newWidth = Math.round((originalWidth / originalHeight) * newHeight);
+            return { width: newWidth, height: newHeight };
+        }
     } else {
         // Auto mode: portrait uses height, landscape uses width
         if (originalWidth >= originalHeight) {
@@ -663,7 +995,8 @@ export function getFileExtension(fileOrName) {
                 [ImageMimeTypes.TIFF]: FileExtensions.TIFF,
                 [ImageMimeTypes.AVIF]: FileExtensions.AVIF,
                 [ImageMimeTypes.ICO]: FileExtensions.ICO,
-                [ImageMimeTypes.MICROSOFT_ICO]: FileExtensions.ICO
+                [ImageMimeTypes.MICROSOFT_ICO]: FileExtensions.ICO,
+                [ImageMimeTypes.PDF]: FileExtensions.PDF
             }[fileType.toLowerCase()];
 
             if (mimeExt) {
@@ -761,6 +1094,17 @@ export async function createThumbnail(imageOrFile, maxSize = 200) {
         file = imageOrFile.file;
     } else {
         throw new Error('Invalid input: must be File or object with file property');
+    }
+
+    // For PDF files, create thumbnail from first page
+    if (isPDF(file)) {
+        try {
+            const imageFile = await convertPDFToImage(file, { scale: 0.5 });
+            return createThumbnail(imageFile, maxSize);
+        } catch (error) {
+            // Return a PDF icon as fallback
+            return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2UzMWYyZiIvPjxwYXRoIGQ9Ik01MCA1MGgxMDB2MjBINTB6TTUwIDkwaDEwMHYyMEg1MHpNNTAgMTMwaDEwMHYyMEg1MHoiIGZpbGw9IiNmZmYiLz48L3N2Zz4=';
+        }
     }
 
     return new Promise((resolve, reject) => {
@@ -868,6 +1212,20 @@ export async function analyzeForOptimization(file) {
         recommendations: []
     };
 
+    // Special handling for PDF files
+    if (isPDF(file)) {
+        analysis.isPDF = true;
+        analysis.recommendations.push('PDF file - consider converting pages to images or compressing');
+
+        try {
+            const pdfInfo = await getPDFInfo(file);
+            analysis.pdfInfo = pdfInfo;
+            analysis.recommendations.push(`PDF has ${pdfInfo.pageCount} page(s)`);
+        } catch (error) {
+            // Ignore PDF info errors
+        }
+    }
+
     // Calculate optimization score (0-100)
     let score = 0;
 
@@ -919,67 +1277,75 @@ export function getOptimizationPreset(useCase) {
     const presets = {
         'web-high': {
             quality: 85,
-            format: 'auto',
+            format: OptimizationFormats.AUTO,
             maxDisplayWidth: 1920,
-            compressionMode: 'balanced',
+            compressionMode: CompressionModes.BALANCED,
             stripMetadata: true,
             description: 'High quality web images'
         },
         'web-balanced': {
             quality: 80,
-            format: 'auto',
+            format: OptimizationFormats.AUTO,
             maxDisplayWidth: 1200,
-            compressionMode: 'adaptive',
+            compressionMode: CompressionModes.ADAPTIVE,
             stripMetadata: true,
             description: 'Balanced web images'
         },
         'web-aggressive': {
             quality: 70,
-            format: FileExtensions.WEBP,
+            format: OptimizationFormats.WEBP,
             maxDisplayWidth: 800,
-            compressionMode: 'aggressive',
+            compressionMode: CompressionModes.AGGRESSIVE,
             stripMetadata: true,
             description: 'Aggressive web optimization'
         },
         'social-media': {
             quality: 90,
-            format: FileExtensions.JPG,
+            format: OptimizationFormats.JPEG,
             maxDisplayWidth: 1080,
-            compressionMode: 'balanced',
+            compressionMode: CompressionModes.BALANCED,
             stripMetadata: false, // Keep metadata for social
             description: 'Social media images'
         },
         'ecommerce': {
             quality: 92,
-            format: FileExtensions.WEBP,
+            format: OptimizationFormats.WEBP,
             maxDisplayWidth: 1200,
-            compressionMode: 'balanced',
+            compressionMode: CompressionModes.BALANCED,
             stripMetadata: true,
             preserveTransparency: true,
             description: 'E-commerce product images'
         },
         'favicon': {
             quality: 100,
-            format: FileExtensions.ICO,
-            compressionMode: 'balanced',
+            format: OptimizationFormats.ICO,
+            compressionMode: CompressionModes.BALANCED,
             icoSizes: [16, 32, 48, 64],
             description: 'Favicon generation'
         },
         'print-ready': {
             quality: 100,
-            format: FileExtensions.PNG,
-            compressionMode: 'balanced',
+            format: OptimizationFormats.PNG,
+            compressionMode: CompressionModes.BALANCED,
             lossless: true,
             stripMetadata: false,
             description: 'Print-ready images'
         },
         'mobile-optimized': {
             quality: 75,
-            format: FileExtensions.WEBP,
+            format: OptimizationFormats.WEBP,
             maxDisplayWidth: 800,
-            compressionMode: 'aggressive',
+            compressionMode: CompressionModes.AGGRESSIVE,
             stripMetadata: true,
             description: 'Mobile-optimized images'
+        },
+        'pdf-preview': {
+            quality: 85,
+            format: OptimizationFormats.PNG,
+            maxDisplayWidth: 1200,
+            compressionMode: CompressionModes.BALANCED,
+            stripMetadata: true,
+            description: 'PDF page preview'
         }
     };
 
@@ -1019,6 +1385,10 @@ export function calculateOptimizationSavings(originalSize, optimizationSettings)
         case FileExtensions.SVG:
             estimatedSize *= 0.3;
             reductionFactors.push('SVG format: 70% reduction');
+            break;
+        case FileExtensions.PDF:
+            estimatedSize *= 0.9;
+            reductionFactors.push('PDF compression: 10% reduction');
             break;
         default:
             estimatedSize *= 0.75;
@@ -1164,6 +1534,10 @@ export function needsFormatConversion(file) {
 export function getRecommendedFormat(file) {
     const extension = getFileExtension(file);
 
+    if (isPDF(file)) {
+        return FileExtensions.PDF; // Keep PDF as PDF
+    }
+
     if (extension === FileExtensions.SVG) return FileExtensions.SVG;
     if (extension === FileExtensions.ICO) return FileExtensions.ICO;
 
@@ -1208,18 +1582,18 @@ export async function getOptimizationStats(file) {
  * @param {Array<string>} browserSupport - Browser support requirements
  * @returns {Object} Format priority data
  */
-export function getFormatPriorities(browserSupport = ['modern', 'legacy']) {
+export function getFormatPriorities(browserSupport = [BrowserSupport.MODERN, BrowserSupport.LEGACY]) {
     const formats = {
         [FileExtensions.AVIF]: {
             quality: 0.9,
-            browserSupport: browserSupport.includes('modern') ? 0.9 : 0.7,
+            browserSupport: browserSupport.includes(BrowserSupport.MODERN) ? 0.9 : 0.7,
             compression: 0.8,
             supportsTransparency: true,
             maxQuality: 63 // AVIF has different quality scale
         },
         [FileExtensions.WEBP]: {
             quality: 0.8,
-            browserSupport: browserSupport.includes('legacy') ? 0.9 : 0.98,
+            browserSupport: browserSupport.includes(BrowserSupport.LEGACY) ? 0.9 : 0.98,
             compression: 0.7,
             supportsTransparency: true,
             maxQuality: 100
@@ -1244,6 +1618,14 @@ export function getFormatPriorities(browserSupport = ['modern', 'legacy']) {
             compression: 0.5,
             supportsTransparency: true,
             maxQuality: 100
+        },
+        [FileExtensions.PDF]: {
+            quality: 1.0,
+            browserSupport: 1.0,
+            compression: 0.7,
+            supportsTransparency: true,
+            maxQuality: 100,
+            isDocument: true
         }
     };
 
@@ -1263,7 +1645,8 @@ export async function checkAICapabilities() {
         canvasAvailable: false,
         workerAvailable: typeof Worker !== 'undefined',
         tensorFlowAvailable: typeof tf !== 'undefined',
-        faceDetectorAvailable: typeof FaceDetector !== 'undefined'
+        faceDetectorAvailable: typeof FaceDetector !== 'undefined',
+        pdfJSAvailable: await isPDFJSAvailable()
     };
 
     try {
@@ -1326,11 +1709,15 @@ function generateAISummary(capabilities) {
     if (capabilities.entropyDetection) availableFeatures.push('Entropy Analysis');
     else unavailableFeatures.push('Entropy Analysis (requires TensorFlow.js)');
 
+    if (capabilities.pdfJSAvailable) availableFeatures.push('PDF Processing');
+    else unavailableFeatures.push('PDF Processing (requires PDF.js)');
+
     return {
         available: availableFeatures,
         unavailable: unavailableFeatures,
         hasAdvancedAI: capabilities.tensorFlowAvailable,
         canUseWorkers: capabilities.workerAvailable && capabilities.offscreenCanvas,
+        canProcessPDFs: capabilities.pdfJSAvailable,
         recommendedMode: capabilities.faceDetection ? 'face' :
             capabilities.objectDetection ? 'object' :
                 capabilities.saliencyDetection ? 'saliency' : 'center'
@@ -1386,6 +1773,7 @@ export function getAspectRatioString(width, height) {
 
     return closestRatio || `${Math.round(aspectRatio * 100) / 100}:1`;
 }
+
 /**
  * Get image outputs from LemGendImage or similar object
  * @param {Object} image - Image object

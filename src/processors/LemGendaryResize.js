@@ -4,9 +4,9 @@
  * @module processors/LemGendaryResize
  */
 
-// Import validation utilities - KEEP ORIGINAL IMPORT
+// Import validation utilities
 import { validateResize } from '../utils/validationUtils.js';
-// Import constants - ADD NEW IMPORT
+// Import constants
 import {
     ResizeAlgorithms,
     ResizeModes,
@@ -39,7 +39,7 @@ export class LemGendaryResize {
             ...options
         };
 
-        // Validate options on creation - FIXED: Added validation
+        // Validate options on creation
         this.validateOptions();
     }
 
@@ -73,7 +73,7 @@ export class LemGendaryResize {
                 imageSize: `${image.width}x${image.height}`
             });
 
-            // Validate image - FIXED: Added image validation
+            // Validate image
             if (!image || !image.width || !image.height) {
                 throw new Error('Invalid image: missing dimensions');
             }
@@ -259,7 +259,7 @@ export class LemGendaryResize {
     getInfo() {
         return {
             name: 'LemGendaryResize',
-            version: '1.2.1',
+            version: '3.0.0',
             description: 'Intelligent image resizing with aspect ratio preservation',
             options: this.options,
             supports: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'],
@@ -363,7 +363,7 @@ export class LemGendaryResize {
     }
 }
 
-// Export helper function for standalone use - FIXED: Added export
+// Export helper function for standalone use
 /**
  * Create a resize processor with options
  * @param {Object} options - Resize options

@@ -1,7 +1,11 @@
 /**
  * String utility functions
  * @module utils/stringUtils
+ * @version 3.0.0
  */
+
+// Import shared constants
+import { Defaults } from '../constants/sharedConstants.js';
 
 /**
  * Calculate similarity between two strings
@@ -72,7 +76,7 @@ export function sanitizeFilename(filename) {
         .replace(/[<>:"/\\|?*]/g, '-')
         .replace(/\s+/g, '_')
         .replace(/[^\w.\-]/g, '')
-        .substring(0, 255)
+        .substring(0, Defaults.MAX_FILENAME_LENGTH)
         .trim()
 }
 
@@ -130,6 +134,11 @@ export function applyPattern(pattern, variables) {
     result = result.replace(/[ _]{2,}/g, ' ')
     result = result.trim()
     result = result.replace(/^[-_.]+|[-_.]+$/g, '')
+
+    // Limit length
+    if (result.length > Defaults.MAX_FILENAME_LENGTH) {
+        result = result.substring(0, Defaults.MAX_FILENAME_LENGTH)
+    }
 
     return result
 }

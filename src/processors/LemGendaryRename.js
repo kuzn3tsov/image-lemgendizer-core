@@ -536,7 +536,7 @@ export class LemGendaryRename {
     getInfo() {
         return {
             name: 'LemGendaryRename',
-            version: '1.0.0',
+            version: '3.0.0',
             description: 'Intelligent file renaming with pattern support',
             patterns: this.getCommonPatterns(),
             variables: this.getAvailableVariables(),

@@ -27,14 +27,13 @@ import {
     Defaults,
     TaskTypes,
     OptimizationLevels,
-    TemplateCategories
+    TemplateCategories,
+    ErrorCodes,
+    WarningCodes
 } from '../constants/sharedConstants.js';
 
 // Import processing utilities
 import { formatFileSize } from '../utils/imageUtils.js';
-
-// Import validation constants from sharedConstants
-import { ErrorCodes, WarningCodes } from '../constants/sharedConstants.js';
 
 export class LemGendTask {
     /**
@@ -52,14 +51,14 @@ export class LemGendTask {
         this.createdAt = new Date().toISOString();
         this.updatedAt = new Date().toISOString();
         this.metadata = {
-            version: '2.2.0',
+            version: '3.0.0',
             processorVersions: {
-                resize: '1.2.1',
-                crop: '2.0.0',
-                optimize: '2.0.0',
-                rename: '1.0.0',
-                template: '1.3.0',
-                favicon: '2.0.0'
+                resize: '3.0.0',
+                crop: '3.0.0',
+                optimize: '3.0.0',
+                rename: '3.0.0',
+                template: '3.0.0',
+                favicon: '3.0.0',
             },
             estimatedDuration: null,
             estimatedOutputs: 0,
@@ -142,14 +141,14 @@ export class LemGendTask {
             case ProcessorTypes.RESIZE:
                 if (options.dimension > 4000) {
                     warnings.push({
-                        code: ValidationWarnings.VERY_LARGE_DIMENSION,
+                        code: WarningCodes.VERY_LARGE_DIMENSION,
                         message: `Very large target dimension (${options.dimension}px)`,
                         severity: 'warning'
                     });
                 }
                 if (options.dimension < 50) {
                     warnings.push({
-                        code: ValidationWarnings.VERY_SMALL_DIMENSION,
+                        code: WarningCodes.VERY_SMALL_DIMENSION,
                         message: `Very small target dimension (${options.dimension}px)`,
                         severity: 'warning'
                     });
@@ -168,7 +167,7 @@ export class LemGendTask {
                     const aspectRatio = options.width / options.height;
                     if (aspectRatio > 5 || aspectRatio < 0.2) {
                         warnings.push({
-                            code: ValidationWarnings.EXTREME_ASPECT_RATIO,
+                            code: WarningCodes.EXTREME_ASPECT_RATIO,
                             message: `Extreme aspect ratio: ${aspectRatio.toFixed(2)}`,
                             severity: 'warning'
                         });
@@ -186,7 +185,7 @@ export class LemGendTask {
                     options.browserSupport &&
                     !options.browserSupport.includes(BrowserSupport.MODERN)) {
                     warnings.push({
-                        code: ValidationWarnings.AVIF_BROWSER_SUPPORT,
+                        code: WarningCodes.AVIF_BROWSER_SUPPORT,
                         message: 'AVIF format may not be supported in legacy browsers',
                         severity: 'warning'
                     });
@@ -203,7 +202,7 @@ export class LemGendTask {
             case ProcessorTypes.TEMPLATE:
                 if (!options.templateId) {
                     warnings.push({
-                        code: ValidationErrors.MISSING_TEMPLATE_ID,
+                        code: ErrorCodes.MISSING_TEMPLATE_ID,
                         message: 'Template ID is required',
                         severity: 'warning'
                     });
@@ -211,7 +210,7 @@ export class LemGendTask {
                     const template = getTemplateById(options.templateId);
                     if (!template) {
                         warnings.push({
-                            code: ValidationErrors.TEMPLATE_NOT_FOUND,
+                            code: ErrorCodes.TEMPLATE_NOT_FOUND,
                             message: `Template not found: ${options.templateId}`,
                             severity: 'warning'
                         });
@@ -233,7 +232,7 @@ export class LemGendTask {
         if (options.width && options.height) {
             if (options.width < 10 || options.height < 10) {
                 result.warnings.push({
-                    code: ValidationWarnings.SMALL_CROP_SIZE,
+                    code: WarningCodes.SMALL_CROP_SIZE,
                     message: `Crop dimensions very small: ${options.width}x${options.height}`,
                     severity: 'warning'
                 });
@@ -241,7 +240,7 @@ export class LemGendTask {
 
             if (options.width > 10000 || options.height > 10000) {
                 result.warnings.push({
-                    code: ValidationWarnings.LARGE_CROP_SIZE,
+                    code: WarningCodes.LARGE_CROP_SIZE,
                     message: `Crop dimensions very large: ${options.width}x${options.height}`,
                     severity: 'warning'
                 });
@@ -260,7 +259,7 @@ export class LemGendTask {
 
         if (options.quality && (options.quality < 1 || options.quality > 100)) {
             result.warnings.push({
-                code: ValidationWarnings.LOSSLESS_QUALITY_CONFLICT,
+                code: WarningCodes.LOSSLESS_QUALITY_CONFLICT,
                 message: `Quality ${options.quality}% is outside valid range (1-100)`,
                 severity: 'warning'
             });
@@ -278,7 +277,7 @@ export class LemGendTask {
 
         if (!pattern || pattern.trim() === '') {
             result.warnings.push({
-                code: ValidationWarnings.NO_PLACEHOLDERS,
+                code: WarningCodes.NO_PLACEHOLDERS,
                 message: 'Rename pattern is empty',
                 severity: 'warning'
             });

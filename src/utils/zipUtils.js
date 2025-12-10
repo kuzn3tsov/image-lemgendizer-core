@@ -1,11 +1,19 @@
 /**
  * ZIP utility functions
  * @module utils/zipUtils
+ * @version 3.0.0
  */
 
 // Import from centralized utils
 import { getImageOutputs, formatFileSize, getFileExtension, getMimeTypeFromExtension } from './imageUtils.js';
 import { sanitizeFilename } from './stringUtils.js';
+
+// Import shared constants
+import {
+    FileExtensions,
+    ImageMimeTypes,
+    Defaults
+} from '../constants/sharedConstants.js';
 
 // JSZip will be dynamically imported
 let JSZipPromise = null;
@@ -164,7 +172,7 @@ Export Information
 Date: ${now.toLocaleDateString()} ${now.toLocaleTimeString()}
 Mode: ${options.mode === 'custom' ? 'Custom Processing' : 'Template Processing'}
 Tool: LemGendary Image Processor
-Version: 2.2.0
+Version: 3.0.0
 Export ID: ${Date.now().toString(36).toUpperCase()}
 
 Options Used
@@ -376,7 +384,7 @@ export async function createLemGendaryZip(processedImages = [], options = {}) {
             type: 'blob',
             compression: 'DEFLATE',
             compressionOptions: { level: 6 },
-            comment: `Created by LemGendary Image Processor - ${now.toISOString()}`,
+            comment: `Created by LemGendary Image Processor v3.0.0 - ${now.toISOString()}`,
             platform: 'UNIX'
         });
 

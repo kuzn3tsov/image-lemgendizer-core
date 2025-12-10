@@ -471,6 +471,7 @@ core/
 │   ├── constants/               # Constants
 │   │   └── sharedConstants.js    # Shared constants
 │   ├── processors/              # Processing modules
+│   │   ├── LemGendaryPDF.js   # PDF processing
 │   │   ├── LemGendaryResize.js   # Intelligent resizing
 │   │   ├── LemGendaryCrop.js     # AI-powered cropping
 │   │   ├── LemGendaryOptimize.js # Advanced optimization

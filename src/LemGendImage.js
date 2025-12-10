@@ -1,6 +1,7 @@
 /**
  * LemGendImage - Core image representation class
  * @class
+ * @version 3.0.0
  * @description Represents an image throughout the processing pipeline
  */
 
@@ -10,7 +11,12 @@ import {
     createThumbnail,
     analyzeForOptimization,
     getFileExtension,
-    fileToDataURL
+    fileToDataURL,
+    isPDF,
+    getPDFDimensions,
+    getPDFInfo,
+    convertPDFToImage,
+    compressPDF
 } from './utils/imageUtils.js';
 
 export class LemGendImage {
@@ -31,6 +37,10 @@ export class LemGendImage {
         this.type = file.type
         this.mimeType = file.type
         this.extension = getFileExtension(file)
+        this.isPDF = isPDF(file)
+
+        // Add version
+        this.version = '3.0.0'
 
         if (this.extension === 'ico' && !this.type.includes('image')) {
             this.type = 'image/x-icon'
@@ -44,7 +54,8 @@ export class LemGendImage {
             createdAt: new Date().toISOString(),
             lastModified: new Date().toISOString(),
             optimizationHistory: [],
-            analysis: null
+            analysis: null,
+            pdfInfo: null
         }
         this.outputs = new Map()
         this.processed = false
@@ -71,12 +82,14 @@ export class LemGendImage {
      */
     load = async () => {
         try {
-            if (this.type === 'image/svg+xml') {
-                await this._loadSVG()
+            if (this.isPDF) {
+                await this._loadPDF();
+            } else if (this.type === 'image/svg+xml') {
+                await this._loadSVG();
             } else if (this.type === 'image/x-icon' || this.type === 'image/vnd.microsoft.icon') {
-                await this._loadFavicon()
+                await this._loadFavicon();
             } else {
-                await this._loadRaster()
+                await this._loadRaster();
             }
 
             if (this.width && this.height) {
@@ -98,6 +111,11 @@ export class LemGendImage {
             this.metadata.analysis = analysis
             this.metadata.optimizationLevel = analysis.optimizationLevel
 
+            // Store PDF info if available
+            if (this.isPDF && analysis.pdfInfo) {
+                this.metadata.pdfInfo = analysis.pdfInfo
+            }
+
             // Check transparency if applicable
             if (this.type === 'image/png' || this.type === 'image/webp' || this.type.includes('icon')) {
                 this.transparency = await hasTransparency(this.file)
@@ -106,6 +124,32 @@ export class LemGendImage {
             return this
         } catch (error) {
             throw new Error(`Failed to load image: ${error.message}`)
+        }
+    }
+
+    /**
+     * Load and analyze PDF file
+     * @private
+     */
+    _loadPDF = async () => {
+        try {
+            const dimensions = await getPDFDimensions(this.file)
+            const pdfInfo = await getPDFInfo(this.file)
+
+            this.width = dimensions.width
+            this.height = dimensions.height
+            this.aspectRatio = dimensions.aspectRatio
+            this.orientation = dimensions.orientation
+
+            this.metadata.pdfInfo = {
+                ...pdfInfo,
+                pageCount: dimensions.pageCount || pdfInfo.pageCount,
+                dimensions: { width: this.width, height: this.height }
+            }
+
+            return this
+        } catch (error) {
+            throw new Error(`Failed to load PDF: ${error.message}`)
         }
     }
 
@@ -283,6 +327,16 @@ export class LemGendImage {
                 timestamp: new Date().toISOString()
             })
         }
+
+        // Track PDF operations
+        if (this.isPDF) {
+            this.metadata.pdfOperations = this.metadata.pdfOperations || []
+            this.metadata.pdfOperations.push({
+                operation,
+                details,
+                timestamp: new Date().toISOString()
+            })
+        }
     }
 
     /**
@@ -348,6 +402,60 @@ export class LemGendImage {
     }
 
     /**
+     * Convert PDF to image (first page)
+     * @param {Object} options - Conversion options
+     * @returns {Promise<File>} Image file
+     */
+    convertPDFToImage = async (options = {}) => {
+        if (!this.isPDF) {
+            throw new Error('Image is not a PDF')
+        }
+
+        const imageFile = await convertPDFToImage(this.file, options)
+
+        // Create a temporary LemGendImage for the converted image
+        const imageInstance = new LemGendImage(imageFile)
+        await imageInstance.load()
+
+        // Update this instance's dimensions to match the converted image
+        this.updateDimensions(imageInstance.width, imageInstance.height)
+
+        return imageFile
+    }
+
+    /**
+     * Compress PDF file
+     * @param {Object} options - Compression options
+     * @returns {Promise<File>} Compressed PDF file
+     */
+    compressPDF = async (options = {}) => {
+        if (!this.isPDF) {
+            throw new Error('Image is not a PDF')
+        }
+
+        const compressedFile = await compressPDF(this.file, options)
+
+        // Update file reference
+        this.file = compressedFile
+        this.originalSize = compressedFile.size
+        this.addOperation('compress', options)
+
+        return compressedFile
+    }
+
+    /**
+     * Get PDF information
+     * @returns {Promise<Object>} PDF information
+     */
+    getPDFInfo = async () => {
+        if (!this.isPDF) {
+            throw new Error('Image is not a PDF')
+        }
+
+        return this.metadata.pdfInfo || await getPDFInfo(this.file)
+    }
+
+    /**
      * Get optimization recommendations based on image analysis
      * @returns {Object} Optimization recommendations
      */
@@ -374,6 +482,12 @@ export class LemGendImage {
             recommendations.suggestions.push('Image is very large (>10MB) - consider aggressive compression')
         }
 
+        // PDF specific suggestions
+        if (this.isPDF) {
+            recommendations.suggestions.push('PDF file - consider converting to images for web display')
+            recommendations.suggestions.push('Use PDF compression to reduce file size')
+        }
+
         return recommendations
     }
 
@@ -382,6 +496,11 @@ export class LemGendImage {
      * @private
      */
     _recommendFormat = () => {
+        // For PDF files, keep as PDF or convert to images
+        if (this.isPDF) {
+            return 'pdf'
+        }
+
         if (this.type === 'image/svg+xml') return 'svg'
         if (this.type.includes('icon')) return 'ico'
 
@@ -402,6 +521,10 @@ export class LemGendImage {
      * @private
      */
     _recommendQuality = () => {
+        if (this.isPDF) {
+            return 100 // PDFs should be lossless
+        }
+
         if (this.type === 'image/svg+xml' || this.type.includes('icon')) {
             return 100 // Vector and icons should be lossless
         }
@@ -422,6 +545,11 @@ export class LemGendImage {
      * @private
      */
     _recommendResize = () => {
+        // For PDFs, don't recommend resize (dimensions are page dimensions)
+        if (this.isPDF) {
+            return null
+        }
+
         const maxWebDimension = 1920
 
         if (this.width <= maxWebDimension && this.height <= maxWebDimension) {
@@ -478,7 +606,8 @@ export class LemGendImage {
                 dimensions: `${this.width}x${this.height}`,
                 format: this.extension,
                 hasTransparency: this.transparency,
-                mimeType: this.type
+                mimeType: this.type,
+                isPDF: this.isPDF
             },
             recommendations,
             estimatedSavings: this._estimateOptimizationSavings(recommendations),
@@ -512,6 +641,9 @@ export class LemGendImage {
             case 'svg':
                 estimatedSize *= 0.3
                 break
+            case 'pdf':
+                estimatedSize *= 0.9 // PDF compression
+                break
         }
 
         // Apply quality adjustment
@@ -539,7 +671,7 @@ export class LemGendImage {
      * @returns {Object} Image information
      */
     getInfo = () => {
-        return {
+        const info = {
             id: this.id,
             name: this.originalName,
             type: this.type,
@@ -558,6 +690,13 @@ export class LemGendImage {
                 recommendations: this.optimizationRecommendations.length
             }
         }
+
+        // Add PDF specific info
+        if (this.isPDF && this.metadata.pdfInfo) {
+            info.pdfInfo = this.metadata.pdfInfo
+        }
+
+        return info
     }
 
     /**
@@ -574,7 +713,8 @@ export class LemGendImage {
                 id: info.id,
                 name: info.name,
                 type: info.type,
-                processed: info.processed
+                processed: info.processed,
+                isPDF: this.isPDF
             },
             analysis: this.metadata.analysis,
             optimizationHistory: this.metadata.optimizationHistory,
@@ -627,6 +767,20 @@ export class LemGendImage {
                 maxDisplayWidth: null,
                 compressionMode: 'balanced',
                 lossless: true
+            },
+            'pdf': {
+                quality: 100,
+                format: 'pdf',
+                compression: true,
+                preserveQuality: true,
+                isDocument: true
+            },
+            'pdf-preview': {
+                quality: 85,
+                format: 'png',
+                maxDisplayWidth: 1200,
+                pageNumber: 1,
+                isDocument: true
             }
         }
 
@@ -676,6 +830,7 @@ export class LemGendImage {
         clone.aspectRatio = this.aspectRatio
         clone.optimizationScore = this.optimizationScore
         clone.optimizationRecommendations = [...this.optimizationRecommendations]
+        clone.isPDF = this.isPDF
 
         return clone
     }

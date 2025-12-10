@@ -99,7 +99,7 @@ export class LemGendaryOptimize {
         // Check lossless vs quality setting
         if (lossless && quality < 100) {
             this.warnings.push({
-                code: WarningCodes.LOSSLESS_QUALITY_CONFLICT,
+                code: WarningCodes.CONTENT_LOSS,
                 message: 'Lossless mode enabled but quality is less than 100%',
                 severity: SeverityLevels.WARNING,
                 suggestion: 'Set quality to 100% for true lossless optimization'
@@ -710,7 +710,7 @@ export class LemGendaryOptimize {
     getInfo() {
         return {
             name: 'LemGendaryOptimize',
-            version: '2.0.0',
+            version: '3.0.0',
             description: 'Intelligent image optimization with format selection',
             formats: Object.values(OptimizationFormats),
             compressionModes: Object.values(CompressionModes),

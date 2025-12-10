@@ -108,7 +108,8 @@ export const ProcessorTypes = {
     OPTIMIZE: 'optimize',
     RENAME: 'rename',
     TEMPLATE: 'template',
-    FAVICON: 'favicon'
+    FAVICON: 'favicon',
+    PDF: 'pdf'
 };
 
 // ===== TASK TYPES =====
@@ -180,6 +181,9 @@ export const OptimizationFormats = {
     AVIF: 'avif',
     SVG: 'svg',
     ICO: 'ico',
+    PDF: 'pdf',
+    EPS: 'eps',
+    AI: 'ai',
     ORIGINAL: 'original'
 };
 
@@ -232,7 +236,10 @@ export const ImageMimeTypes = {
     TIFF: 'image/tiff',
     AVIF: 'image/avif',
     ICO: 'image/x-icon',
-    MICROSOFT_ICO: 'image/vnd.microsoft.icon'
+    MICROSOFT_ICO: 'image/vnd.microsoft.icon',
+    PDF: 'application/pdf',
+    EPS: 'application/postscript',
+    AI: 'application/illustrator'
 };
 
 // ===== FILE EXTENSIONS =====
@@ -247,11 +254,15 @@ export const FileExtensions = {
     TIFF: 'tiff',
     TIF: 'tiff',
     AVIF: 'avif',
-    ICO: 'ico'
+    ICO: 'ico',
+    PDF: 'pdf',
+    EPS: 'eps',
+    AI: 'ai'
 };
 
 // ===== ASPECT RATIOS =====
 export const AspectRatios = {
+    // Standard ratios
     SQUARE: '1:1',
     FOUR_THREE: '4:3',
     THREE_TWO: '3:2',
@@ -259,7 +270,232 @@ export const AspectRatios = {
     SIXTEEN_NINE: '16:9',
     TWENTYONE_NINE: '21:9',
     THREE_FOUR: '3:4',
-    TWO_THREE: '2:3'
+    TWO_THREE: '2:3',
+    TWO_ONE: '2:1',
+    FIVE_TWO: '5:2',
+    FIVE_THREE: '5:3',
+    FOUR_ONE: '4:1',
+    THREE_ONE: '3:1',
+    NINE_SIXTEEN: '9:16',
+    NINETEEN_TEN: '1.91:1',
+    TWENTYSEVEN_TEN: '2.7:1',
+
+    // Print & document ratios
+    LETTER_PORTRAIT: '8.5:11',
+    LETTER_LANDSCAPE: '11:8.5',
+    LEGAL_PORTRAIT: '8.5:14',
+    LEGAL_LANDSCAPE: '14:8.5',
+    TABLOID_PORTRAIT: '11:17',
+    TABLOID_LANDSCAPE: '17:11',
+    A4_PORTRAIT: '210:297',
+    A4_LANDSCAPE: '297:210',
+
+    // Specialized ratios
+    GATEFOLD: '17:11',
+    RACK_CARD_PORTRAIT: '4:9',
+    RACK_CARD_LANDSCAPE: '9:4',
+    TRIFOLD: '8.5:11',
+
+    // Flexible/variable
+    FLEXIBLE: 'flexible',
+    VARIABLE: 'variable'
+};
+
+// ===== PLATFORM CONSTANTS =====
+export const PlatformTypes = {
+    // Web & Browser
+    WEB: 'web',
+    BROWSER: 'browser',
+    RESPONSIVE: 'responsive',
+
+    // Mobile
+    MOBILE: 'mobile',
+    IOS: 'ios',
+    ANDROID: 'android',
+    TABLET: 'tablet',
+
+    // Desktop
+    DESKTOP: 'desktop',
+    WINDOWS: 'windows',
+    MAC: 'mac',
+
+    // Browsers
+    SAFARI: 'safari',
+    CHROME: 'chrome',
+    FIREFOX: 'firefox',
+    EDGE: 'edge',
+
+    // Social Media
+    FACEBOOK: 'facebook',
+    TWITTER: 'twitter',
+    INSTAGRAM: 'instagram',
+    LINKEDIN: 'linkedin',
+    YOUTUBE: 'youtube',
+    PINTEREST: 'pinterest',
+    TIKTOK: 'tiktok',
+
+    // E-commerce
+    SHOPIFY: 'shopify',
+    WOOCOMMERCE: 'woocommerce',
+    AMAZON: 'amazon',
+    EBAY: 'ebay',
+    MAGENTO: 'magento',
+    BIGCOMMERCE: 'bigcommerce',
+
+    // Print
+    PRINT: 'print',
+
+    // Media
+    PHOTO: 'photo',
+    VIDEO: 'video',
+    EMAIL: 'email',
+
+    // Display
+    RETINA: 'retina',
+    HIGH_DPI: 'high-dpi',
+
+    // Categories
+    GALLERY: 'gallery',
+    ECOMMERCE: 'ecommerce',
+    BLOG: 'blog',
+    ARTICLE: 'article',
+    CONTENT: 'content',
+    UI: 'ui',
+    CARDS: 'cards',
+    APP: 'app'
+};
+
+// ===== COMMON USES =====
+export const CommonUses = {
+    // Favicon & Icons
+    WEBSITE_ICON: 'website-icon',
+    BROWSER_TAB: 'browser-tab',
+    MOBILE_APP: 'mobile-app',
+    HOME_SCREEN: 'home-screen',
+    PINNED_TAB: 'pinned-tab',
+    WINDOWS_APP: 'windows-app',
+    START_MENU: 'start-menu',
+    HIGH_DPI: 'high-dpi',
+    PWA: 'pwa',
+    COMPLETE_PACKAGE: 'complete-package',
+
+    // Logo & Branding
+    WEBSITE_HEADER: 'website-header',
+    EMAIL_SIGNATURE: 'email-signature',
+    DOCUMENTATION: 'documentation',
+    SOCIAL_MEDIA: 'social-media',
+    PROFILE: 'profile',
+    BUSINESS_CARD: 'business-card',
+    BROCHURE: 'brochure',
+    SIGNAGE: 'signage',
+    PHOTO_PROTECTION: 'photo-protection',
+    BRANDING: 'branding',
+    VIDEO_OVERLAY: 'video-overlay',
+    STORE: 'store',
+    AVATAR: 'avatar',
+
+    // Social Media
+    COVER: 'cover',
+    BANNER: 'banner',
+    SHARED_POST: 'shared-post',
+    LINK_PREVIEW: 'link-preview',
+    FEED_POST: 'feed-post',
+    ALBUM: 'album',
+    STORIES: 'stories',
+    REELS: 'reels',
+    IGTV: 'igtv',
+    TWEET: 'tweet',
+    SCREENSHOT: 'screenshot',
+    PRODUCT_IMAGE: 'product-image',
+    PORTRAIT_IMAGE: 'portrait-image',
+    PROFESSIONAL: 'professional',
+    NETWORKING: 'networking',
+    CHANNEL_ICON: 'channel-icon',
+    CHANNEL_ART: 'channel-art',
+    THUMBNAIL: 'thumbnail',
+    VIDEO_PREVIEW: 'video-preview',
+    PIN: 'pin',
+    VERTICAL_IMAGE: 'vertical-image',
+    INFOGRAPHIC: 'infographic',
+    VERTICAL_CONTENT: 'vertical-content',
+    VIDEO_COVER: 'video-cover',
+
+    // Web & Content
+    WEBSITE_HERO: 'website-hero',
+    LANDING_PAGE: 'landing-page',
+    BLOG_POST: 'blog-post',
+    ARTICLE: 'article',
+    ARTICLE_CONTENT: 'article-content',
+    PAGE_CONTENT: 'page-content',
+    GALLERY_THUMBNAIL: 'gallery-thumbnail',
+    PRODUCT_THUMBNAIL: 'product-thumbnail',
+    FEATURE_CARD: 'feature-card',
+    PRODUCT_CARD: 'product-card',
+    UI_COMPONENT: 'ui-component',
+    SOCIAL_SHARING: 'social-sharing',
+    ADVERTISING: 'advertising',
+    HEADER: 'header',
+    SIDEBAR: 'sidebar',
+
+    // E-commerce
+    PRODUCT_MAIN: 'product-main',
+    CATALOG: 'catalog',
+    GALLERY: 'gallery',
+    PRODUCT_DETAIL: 'product-detail',
+    ALTERNATIVE_VIEW: 'alternative-view',
+    ZOOM_VIEW: 'zoom-view',
+    HIGH_DETAIL: 'high-detail',
+    PRODUCT_INSPECTION: 'product-inspection',
+    PRODUCT_HEADER: 'product-header',
+    FEATURED_IMAGE: 'featured-image',
+    PRODUCT_GRID: 'product-grid',
+    QUICK_VIEW: 'quick-view',
+    VARIANT: 'variant',
+    OPTION: 'option',
+    COLOR_SWATCH: 'color-swatch',
+    MARKETPLACE: 'marketplace',
+    LIFESTYLE: 'lifestyle',
+    IN_USE: 'in-use',
+    CONTEXT: 'context',
+    SPECIFICATIONS: 'specifications',
+    COLLECTION: 'collection',
+    CATEGORY: 'category',
+    DEPARTMENT: 'department',
+    AUCTION: 'auction',
+    FEATURED: 'featured',
+    PROMOTED: 'promoted',
+
+    // Print & Marketing
+    MARKETING: 'marketing',
+    PROMOTION: 'promotion',
+    INFORMATION: 'information',
+    CREATIVE: 'creative',
+    PRESENTATION: 'presentation',
+    PREMIUM: 'premium',
+    LUXURY: 'luxury',
+    TOURISM: 'tourism',
+    ALTERNATIVE: 'alternative',
+    CORPORATE: 'corporate',
+    COMMUNICATION: 'communication',
+    UPDATES: 'updates',
+    ORGANIZATION: 'organization',
+    PUBLICATION: 'publication',
+    NEWSPAPER: 'newspaper',
+    ANNOUNCEMENT: 'announcement',
+    INDOOR: 'indoor',
+    EVENT: 'event',
+    CONFERENCE: 'conference',
+    EXHIBITION: 'exhibition',
+    RETAIL: 'retail',
+    REPORT: 'report',
+    EDUCATION: 'education',
+    DIGITAL: 'digital',
+    VERSATILE: 'versatile',
+
+    // General
+    SHARING: 'sharing',
+    CONTENT: 'content',
+    ONLINE_SHOP: 'online-shop'
 };
 
 // ===== DEFAULT VALUES =====
@@ -296,6 +532,7 @@ export const Defaults = {
     PRESERVE_TRANSPARENCY: true,
     ANALYZE_CONTENT: true,
     OPTIMIZATION_FIRST: false,
+    OPTIMIZE_ANIMATION: true,
 
     // Rename defaults
     RENAME_PATTERN: '{name}-{dimensions}',
@@ -307,6 +544,9 @@ export const Defaults = {
     ADD_INDEX: true,
     ADD_TIMESTAMP: false,
     USE_PADDED_INDEX: true,
+    REPLACE_SPACES: true,
+    SPACE_REPLACEMENT: '-',
+    KEEP_SPECIAL_CHARS: false,
 
     // Favicon defaults
     FAVICON_SIZES: [16, 32, 48, 64, 128, 256],
@@ -342,7 +582,3 @@ export const SeverityLevels = {
     ERROR: 'error',
     CRITICAL: 'critical'
 };
-
-// Re-export validation constants for backward compatibility
-export const ValidationErrors = ErrorCodes;
-export const ValidationWarnings = WarningCodes;

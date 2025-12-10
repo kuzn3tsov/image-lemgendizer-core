@@ -1,15 +1,25 @@
 /**
  * Image validation utilities
  * @module utils/validation
+ * @version 3.0.0
  */
 // Import shared constants
 import {
     ErrorCodes,
     WarningCodes,
-    CropModes,  // ADD THIS
+    CropModes,
     Defaults,
     ImageMimeTypes,
-    FileExtensions
+    FileExtensions,
+    ResizeModes,
+    ResizeAlgorithms,
+    SeverityLevels,
+    ProcessorTypes,
+    TaskTypes,
+    OptimizationFormats,
+    CompressionModes,
+    BrowserSupport,
+    QualityTargets
 } from '../constants/sharedConstants.js';
 
 // Import utilities
@@ -58,25 +68,25 @@ export function validateResize(params, mode, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_DIMENSION,
             message: 'Dimension must be a positive number',
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
-    if (dimension > 10000) {
+    if (dimension > Defaults.MAX_DIMENSION) {
         result.errors.push({
             code: ErrorCodes.DIMENSION_EXCEEDS_MAX,
-            message: `Dimension exceeds maximum allowed value of 10000`,
-            severity: 'error',
-            suggestion: 'Reduce dimension to 10000 or less'
+            message: `Dimension exceeds maximum allowed value of ${Defaults.MAX_DIMENSION}`,
+            severity: SeverityLevels.ERROR,
+            suggestion: `Reduce dimension to ${Defaults.MAX_DIMENSION} or less`
         });
     }
 
-    if (dimension < 10) {
+    if (dimension < Defaults.MIN_DIMENSION) {
         result.warnings.push({
             code: WarningCodes.VERY_SMALL_DIMENSION,
             message: `Very small target dimension (${dimension}px)`,
-            severity: 'warning',
-            suggestion: 'Consider at least 100px for usable images'
+            severity: SeverityLevels.WARNING,
+            suggestion: `Consider at least ${Defaults.DEFAULT_DIMENSION}px for usable images`
         });
     }
 
@@ -84,30 +94,30 @@ export function validateResize(params, mode, options = {}) {
         result.warnings.push({
             code: WarningCodes.VERY_LARGE_DIMENSION,
             message: `Very large target dimension (${dimension}px)`,
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             suggestion: 'Consider 1920px or less for web images'
         });
     }
 
     // Validate algorithm (if provided)
-    const validAlgorithms = ['lanczos3', 'bilinear', 'nearest', 'cubic', 'mitchell'];
+    const validAlgorithms = Object.values(ResizeAlgorithms);
     if (algorithm && !validAlgorithms.includes(algorithm)) {
         result.valid = false;
         result.errors.push({
             code: ErrorCodes.INVALID_ALGORITHM,
             message: `Algorithm must be one of: ${validAlgorithms.join(', ')}`,
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
     // Validate mode
-    const validModes = ['auto', 'width', 'height', 'longest', 'fit'];
+    const validModes = Object.values(ResizeModes);
     if (resizeMode && !validModes.includes(resizeMode)) {
         result.valid = false;
         result.errors.push({
             code: ErrorCodes.INVALID_MODE,
             message: `Mode must be one of: ${validModes.join(', ')}`,
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
@@ -116,7 +126,7 @@ export function validateResize(params, mode, options = {}) {
         result.warnings.push({
             code: WarningCodes.NON_INTEGER_DIMENSION,
             message: 'Dimension should be an integer for best results',
-            severity: 'info'
+            severity: SeverityLevels.INFO
         });
     }
 
@@ -125,7 +135,7 @@ export function validateResize(params, mode, options = {}) {
         result.warnings.push({
             code: WarningCodes.FORCE_SQUARE_NO_ASPECT,
             message: 'Force square without preserving aspect ratio may cause issues',
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             suggestion: 'Consider enabling preserveAspectRatio for forceSquare'
         });
     }
@@ -134,30 +144,30 @@ export function validateResize(params, mode, options = {}) {
 }
 
 /**
- * Validate resize parameters (replaces both validateCropOptions and validateCrop)
- * @param {Object|number} params - Resize parameters object OR dimension number
- * @param {string} [mode] - Resize mode (if first param is number)
- * @param {Object} [options] - Additional options (if first param is number)
+ * Validate crop parameters
+ * @param {Object|number} params - Crop parameters object OR width number
+ * @param {number|string} height - Height number or crop mode (if first param is number)
+ * @param {Object} options - Additional options (if first param is number)
  * @returns {Object} Validation result
  */
-export function validateCrop(params, mode, options = {}) {
+export function validateCrop(params, height, options = {}) {
     const result = {
         valid: true,
         errors: [],
         warnings: []
     };
 
-    let width, height, cropMode, algorithm;
+    let width, cropHeight, cropMode, algorithm;
 
     // Handle both parameter formats
     if (typeof params === 'object') {
         width = params.width;
-        height = params.height;
+        cropHeight = params.height;
         cropMode = params.mode;
         algorithm = params.algorithm;
     } else {
         width = params;
-        height = mode;
+        cropHeight = height;
         const opts = options;
         cropMode = opts.mode;
         algorithm = opts.algorithm;
@@ -169,46 +179,46 @@ export function validateCrop(params, mode, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_WIDTH,
             message: 'Width must be a positive number',
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
-    if (typeof height !== 'number' || height <= 0) {
+    if (typeof cropHeight !== 'number' || cropHeight <= 0) {
         result.valid = false;
         result.errors.push({
             code: ErrorCodes.INVALID_HEIGHT,
             message: 'Height must be a positive number',
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
     // Check for extreme dimensions
-    if (width < 10 || height < 10) {
+    if (width < Defaults.MIN_CROP_SIZE || cropHeight < Defaults.MIN_CROP_SIZE) {
         result.errors.push({
-            code: 'EXTREME_SMALL_DIMENSIONS',
-            message: `Target dimensions too small: ${width}x${height}`,
-            severity: 'error',
-            suggestion: 'Use dimensions of at least 100x100 pixels'
+            code: WarningCodes.VERY_SMALL_CROP,
+            message: `Target dimensions too small: ${width}x${cropHeight}`,
+            severity: SeverityLevels.ERROR,
+            suggestion: `Use dimensions of at least ${Defaults.DEFAULT_CROP_WIDTH}x${Defaults.DEFAULT_CROP_HEIGHT} pixels`
         });
     }
 
-    if (width > 10000 || height > 10000) {
+    if (width > Defaults.MAX_CROP_SIZE || cropHeight > Defaults.MAX_CROP_SIZE) {
         result.warnings.push({
-            code: 'EXTREME_LARGE_DIMENSIONS',
-            message: `Target dimensions very large: ${width}x${height}`,
-            severity: 'warning',
+            code: WarningCodes.LARGE_CROP_SIZE,
+            message: `Target dimensions very large: ${width}x${cropHeight}`,
+            severity: SeverityLevels.WARNING,
             suggestion: 'Consider smaller dimensions for better performance'
         });
     }
 
     // Validate aspect ratio
-    if (width && height) {
-        const aspectRatio = width / height;
+    if (width && cropHeight) {
+        const aspectRatio = width / cropHeight;
         if (aspectRatio > 10 || aspectRatio < 0.1) {
             result.warnings.push({
-                code: 'EXTREME_ASPECT_RATIO',
+                code: WarningCodes.EXTREME_ASPECT_RATIO,
                 message: `Extreme aspect ratio: ${aspectRatio.toFixed(2)}`,
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: 'Consider more balanced dimensions'
             });
         }
@@ -221,27 +231,27 @@ export function validateCrop(params, mode, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_CROP_MODE,
             message: `Mode must be one of: ${validModes.join(', ')}`,
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
     // Validate algorithm
-    const validAlgorithms = ['lanczos3', 'bilinear', 'nearest'];
+    const validAlgorithms = [ResizeAlgorithms.LANCZOS3, ResizeAlgorithms.BILINEAR, ResizeAlgorithms.NEAREST];
     if (algorithm && !validAlgorithms.includes(algorithm)) {
         result.valid = false;
         result.errors.push({
             code: ErrorCodes.INVALID_ALGORITHM,
-            message: 'Algorithm must be "lanczos3", "bilinear", or "nearest"',
-            severity: 'error'
+            message: `Algorithm must be one of: ${validAlgorithms.join(', ')}`,
+            severity: SeverityLevels.ERROR
         });
     }
 
     // Check for integer dimensions
-    if (width && !Number.isInteger(width) || height && !Number.isInteger(height)) {
+    if (width && !Number.isInteger(width) || cropHeight && !Number.isInteger(cropHeight)) {
         result.warnings.push({
-            code: 'NON_INTEGER_DIMENSIONS',
+            code: WarningCodes.NON_INTEGER_DIMENSION,
             message: 'Crop dimensions should be integers for best results',
-            severity: 'info'
+            severity: SeverityLevels.INFO
         });
     }
 
@@ -264,21 +274,41 @@ export function validateOptimizationOptions(options = {}) {
         if (typeof quality !== 'number' || quality < 1 || quality > 100) {
             result.valid = false;
             result.errors.push({
-                code: 'INVALID_QUALITY',
+                code: ErrorCodes.INVALID_QUALITY,
                 message: `Quality must be between 1 and 100, got ${quality}`,
-                severity: 'error',
+                severity: SeverityLevels.ERROR,
                 suggestion: 'Use a value between 1 and 100'
             });
         }
     }
 
-    const validFormats = ['auto', 'webp', 'jpg', 'jpeg', 'png', 'avif', 'original'];
+    const validFormats = Object.values(OptimizationFormats);
     if (format && !validFormats.includes(format.toLowerCase())) {
         result.warnings.push({
-            code: 'UNSUPPORTED_FORMAT',
+            code: WarningCodes.UNSUPPORTED_FORMAT,
             message: `Format ${format} may not be supported`,
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             suggestion: `Use one of: ${validFormats.join(', ')}`
+        });
+    }
+
+    // Validate compression mode
+    const validCompressionModes = Object.values(CompressionModes);
+    if (compressionMode && !validCompressionModes.includes(compressionMode)) {
+        result.warnings.push({
+            code: ErrorCodes.INVALID_COMPRESSION_MODE,
+            message: `Compression mode must be one of: ${validCompressionModes.join(', ')}`,
+            severity: SeverityLevels.WARNING
+        });
+    }
+
+    // Validate browser support
+    const validBrowserSupport = Object.values(BrowserSupport);
+    if (browserSupport && !validBrowserSupport.includes(browserSupport)) {
+        result.warnings.push({
+            code: ErrorCodes.INVALID_BROWSER_SUPPORT,
+            message: `Browser support must be one of: ${validBrowserSupport.join(', ')}`,
+            severity: SeverityLevels.WARNING
         });
     }
 
@@ -303,7 +333,7 @@ export function getValidationSummary(validationResult) {
  * Validate dimensions
  */
 export function validateDimensions(width, height, options = {}) {
-    const { minWidth = 1, minHeight = 1, maxWidth = 10000, maxHeight = 10000 } = options;
+    const { minWidth = 1, minHeight = 1, maxWidth = Defaults.MAX_DIMENSION, maxHeight = Defaults.MAX_DIMENSION } = options;
 
     const result = {
         valid: true,
@@ -316,15 +346,15 @@ export function validateDimensions(width, height, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_DIMENSIONS,
             message: `Dimensions too small: ${width}x${height} (minimum: ${minWidth}x${minHeight})`,
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
     if (width > maxWidth || height > maxHeight) {
         result.warnings.push({
-            code: 'LARGE_DIMENSIONS',
+            code: WarningCodes.LARGE_DIMENSIONS,
             message: `Large dimensions: ${width}x${height} (maximum: ${maxWidth}x${maxHeight})`,
-            severity: 'warning'
+            severity: SeverityLevels.WARNING
         });
     }
 
@@ -351,9 +381,9 @@ export function validateRenamePattern(pattern) {
     if (!pattern || typeof pattern !== 'string' || pattern.trim() === '') {
         result.valid = false;
         result.errors.push({
-            code: 'EMPTY_PATTERN',
+            code: ErrorCodes.EMPTY_PATTERN,
             message: 'Rename pattern cannot be empty',
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
         return result;
     }
@@ -361,9 +391,9 @@ export function validateRenamePattern(pattern) {
     const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g;
     if (invalidChars.test(pattern)) {
         result.errors.push({
-            code: 'INVALID_CHARS',
+            code: ErrorCodes.INVALID_CHARS,
             message: 'Pattern contains invalid filename characters',
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             suggestion: 'Remove <>:"/\\|?* and control characters from pattern'
         });
         result.valid = false;
@@ -374,10 +404,19 @@ export function validateRenamePattern(pattern) {
 
     if (!hasPlaceholder) {
         result.warnings.push({
-            code: 'NO_PLACEHOLDERS',
+            code: WarningCodes.NO_PLACEHOLDERS,
             message: 'Pattern may create duplicate filenames',
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             suggestion: 'Include {index} or {timestamp} for unique filenames'
+        });
+    }
+
+    if (pattern.length > Defaults.MAX_FILENAME_LENGTH) {
+        result.warnings.push({
+            code: WarningCodes.VERY_LONG_FILENAME,
+            message: `Pattern may result in filenames longer than ${Defaults.MAX_FILENAME_LENGTH} characters`,
+            severity: SeverityLevels.WARNING,
+            suggestion: 'Use shorter pattern or fewer variables'
         });
     }
 
@@ -414,7 +453,7 @@ export function validateImage(file, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_FILE,
             message: 'Not a valid file object',
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             suggestion: 'Provide a valid File object'
         });
         return result;
@@ -455,7 +494,7 @@ export function validateImage(file, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_FILE,
             message: 'File object missing required properties (name, size, type)',
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             suggestion: 'Provide a valid File object with name, size, and type properties'
         });
         return result;
@@ -477,7 +516,7 @@ export function validateImage(file, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_FILE,
             message: 'File is empty',
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             details: `Size: ${formatFileSize(fileSize)}`,
             suggestion: 'Provide a non-empty file'
         });
@@ -486,7 +525,7 @@ export function validateImage(file, options = {}) {
         result.errors.push({
             code: ErrorCodes.FILE_TOO_LARGE,
             message: `File too large (${formatFileSize(fileSize)} > ${formatFileSize(maxFileSize)})`,
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             details: `Current: ${formatFileSize(fileSize)}, Maximum: ${formatFileSize(maxFileSize)}`,
             suggestion: 'Compress or resize the image before uploading'
         });
@@ -494,7 +533,7 @@ export function validateImage(file, options = {}) {
         result.warnings.push({
             code: WarningCodes.LARGE_FILE,
             message: `Large file (${formatFileSize(fileSize)}) may process slowly`,
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             details: `Size: ${formatFileSize(fileSize)}`,
             suggestion: 'Consider compressing the image for faster processing'
         });
@@ -565,9 +604,9 @@ export function validateImage(file, options = {}) {
         result.errors.push({
             code: ErrorCodes.UNSUPPORTED_TYPE,
             message: `Unsupported file type: ${fileType || 'unknown'}`,
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             details: fileName ? `File: ${fileName}, Type: ${fileType}` : `Type: ${fileType}`,
-            suggestion: 'Use JPEG, PNG, WebP, GIF, SVG, BMP, TIFF, AVIF, or ICO formats'
+            suggestion: 'Use JPEG, PNG, WebP, GIF, SVG, BMP, TIFF, AVIF, ICO or PDF formats'
         });
     } else {
         // Update metadata with detected type
@@ -587,7 +626,7 @@ export function validateImage(file, options = {}) {
                 result.errors.push({
                     code: ErrorCodes.INVALID_DIMENSIONS,
                     message: `Dimensions too small: ${width}x${height} (minimum: ${minDimensions.width}x${minDimensions.height})`,
-                    severity: 'error',
+                    severity: SeverityLevels.ERROR,
                     details: `Current: ${width}x${height}, Minimum: ${minDimensions.width}x${minDimensions.height}`,
                     suggestion: 'Use a larger source image or enable upscaling'
                 });
@@ -599,7 +638,7 @@ export function validateImage(file, options = {}) {
                 result.warnings.push({
                     code: WarningCodes.LARGE_DIMENSIONS,
                     message: `Large dimensions: ${width}x${height} (maximum: ${maxDimensions.width}x${maxDimensions.height})`,
-                    severity: 'warning',
+                    severity: SeverityLevels.WARNING,
                     details: `Current: ${width}x${height}, Maximum: ${maxDimensions.width}x${maxDimensions.height}`,
                     suggestion: 'Consider resizing the image for better performance'
                 });
@@ -610,7 +649,7 @@ export function validateImage(file, options = {}) {
                 result.warnings.push({
                     code: WarningCodes.VERY_SMALL_SOURCE,
                     message: `Very small source image: ${width}x${height}`,
-                    severity: 'warning',
+                    severity: SeverityLevels.WARNING,
                     details: `Dimensions: ${width}x${height}`,
                     suggestion: 'Consider using a higher resolution source image'
                 });
@@ -621,7 +660,7 @@ export function validateImage(file, options = {}) {
                 result.warnings.push({
                     code: WarningCodes.VERY_LARGE_SOURCE,
                     message: `Very large source image: ${width}x${height}`,
-                    severity: 'warning',
+                    severity: SeverityLevels.WARNING,
                     details: `Dimensions: ${width}x${height}`,
                     suggestion: 'Consider resizing before processing for better performance'
                 });
@@ -639,7 +678,7 @@ export function validateImage(file, options = {}) {
         result.warnings.push({
             code: WarningCodes.CONTENT_LOSS,
             message: 'File data available as metadata, but not as File object',
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             details: 'File will be reconstructed for processing',
             suggestion: 'Original quality may not be preserved'
         });
@@ -651,7 +690,7 @@ export function validateImage(file, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_FILE,
             message: 'File object required but not available',
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             suggestion: 'Provide a File object instead of metadata'
         });
     }
@@ -661,7 +700,7 @@ export function validateImage(file, options = {}) {
         result.warnings.push({
             code: WarningCodes.CONTENT_LOSS,
             message: 'Image URL may not be a valid blob URL',
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             details: `URL: ${file.url.substring(0, 50)}...`,
             suggestion: 'Use blob URLs for local image processing'
         });
@@ -672,7 +711,7 @@ export function validateImage(file, options = {}) {
         result.warnings.push({
             code: WarningCodes.TRANSPARENCY_LOSS,
             message: 'Image has transparency but is in JPEG format',
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             suggestion: 'Convert to PNG or WebP to preserve transparency'
         });
     }
@@ -682,7 +721,7 @@ export function validateImage(file, options = {}) {
         result.warnings.push({
             code: WarningCodes.AVIF_BROWSER_SUPPORT,
             message: 'AVIF format may not be supported in all browsers',
-            severity: 'info',
+            severity: SeverityLevels.INFO,
             suggestion: 'Consider providing WebP fallback for broader compatibility'
         });
     }
@@ -691,7 +730,7 @@ export function validateImage(file, options = {}) {
         result.warnings.push({
             code: WarningCodes.SVG_SKIPPED,
             message: 'SVG files may skip certain processing steps',
-            severity: 'info',
+            severity: SeverityLevels.INFO,
             suggestion: 'Vector images maintain quality at any size'
         });
     }
@@ -739,7 +778,7 @@ export function validateSessionImage(imageData, options = {}) {
         result.errors.push({
             code: ErrorCodes.INVALID_FILE,
             message: 'Invalid image data',
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
         return result;
     }
@@ -761,7 +800,7 @@ export function validateSessionImage(imageData, options = {}) {
         result.errors.push({
             code: ErrorCodes.MISSING_INFO,
             message: 'Cannot extract file information from session data',
-            severity: 'error',
+            severity: SeverityLevels.ERROR,
             suggestion: 'Session data must contain file, url, metadata, or lemGendImage property'
         });
         return result;
@@ -820,7 +859,7 @@ export function validateSessionImage(imageData, options = {}) {
         result.warnings.push({
             code: WarningCodes.CONTENT_LOSS,
             message: 'Session image URL may not be a valid blob URL',
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             suggestion: 'Re-upload the image for full processing capabilities'
         });
     }
@@ -852,19 +891,20 @@ export function quickValidateImage(file) {
     };
 
     // Quick size check
-    if (file.size > 50 * 1024 * 1024) {
+    if (file.size > Defaults.MAX_FILE_SIZE) {
         result.valid = false;
-        result.error = 'File too large (>50MB)';
+        result.error = `File too large (>${formatFileSize(Defaults.MAX_FILE_SIZE)})`;
     } else if (file.size > 10 * 1024 * 1024) {
         result.warnings.push('Large file may process slowly');
     }
 
-    // Quick type check
+    // Quick type check - now includes PDF/EPS/AI
     const allowedTypes = getAllowedImageMimeTypes();
     const isAllowed = allowedTypes.some(type =>
         file.type.toLowerCase() === type.toLowerCase() ||
         (file.type.includes('jpeg') && type.includes('jpeg')) ||
-        (file.type.includes('jpg') && type.includes('jpg'))
+        (file.type.includes('jpg') && type.includes('jpg')) ||
+        (file.type.includes('pdf') && type.includes('pdf'))
     );
 
     if (!isAllowed) {
@@ -892,7 +932,7 @@ export function validateFaviconOptions(options, imageInfo = null) {
         result.errors.push({
             code: ErrorCodes.INVALID_DIMENSIONS,
             message: 'Favicon sizes must be a non-empty array',
-            severity: 'error'
+            severity: SeverityLevels.ERROR
         });
     }
 
@@ -901,7 +941,7 @@ export function validateFaviconOptions(options, imageInfo = null) {
             result.warnings.push({
                 code: WarningCodes.SMALL_WIDTH,
                 message: `Favicon size ${size}px is below recommended minimum (16px)`,
-                severity: 'warning'
+                severity: SeverityLevels.WARNING
             });
         }
 
@@ -909,7 +949,7 @@ export function validateFaviconOptions(options, imageInfo = null) {
             result.warnings.push({
                 code: WarningCodes.LARGE_DIMENSIONS,
                 message: `Favicon size ${size}px is unusually large`,
-                severity: 'info'
+                severity: SeverityLevels.INFO
             });
         }
     });
@@ -920,7 +960,7 @@ export function validateFaviconOptions(options, imageInfo = null) {
             result.warnings.push({
                 code: WarningCodes.SMALL_WIDTH,
                 message: `Source image (${imageInfo.width}x${imageInfo.height}) smaller than smallest favicon size (${minSize}px)`,
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: 'Consider using a larger source image or enable upscaling'
             });
         }
@@ -929,19 +969,19 @@ export function validateFaviconOptions(options, imageInfo = null) {
             result.warnings.push({
                 code: WarningCodes.CONTENT_LOSS,
                 message: 'Source image is not square; favicons may be distorted',
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: 'Consider adding a crop step before favicon generation'
             });
         }
     }
 
-    const validFormats = ['png', 'ico', 'svg'];
+    const validFormats = [FileExtensions.PNG, FileExtensions.ICO, FileExtensions.SVG];
     formats?.forEach(format => {
         if (!validFormats.includes(format)) {
             result.warnings.push({
                 code: WarningCodes.UNSUPPORTED_FORMAT,
                 message: `Unsupported favicon format: ${format}`,
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: `Use one of: ${validFormats.join(', ')}`
             });
         }
@@ -962,7 +1002,7 @@ export function validateTaskSteps(steps, imageInfo = null) {
 
     steps.forEach((step, index) => {
         switch (step.processor) {
-            case 'resize':
+            case ProcessorTypes.RESIZE:
                 const resizeValidation = validateResize(step.options);
                 if (!resizeValidation.valid) {
                     resizeValidation.errors.forEach(error => {
@@ -977,7 +1017,7 @@ export function validateTaskSteps(steps, imageInfo = null) {
                 }
                 break;
 
-            case 'crop':
+            case ProcessorTypes.CROP:
                 const cropValidation = validateCrop(step.options);
                 if (!cropValidation.valid) {
                     cropValidation.errors.forEach(error => {
@@ -992,7 +1032,7 @@ export function validateTaskSteps(steps, imageInfo = null) {
                 }
                 break;
 
-            case 'optimize':
+            case ProcessorTypes.OPTIMIZE:
                 const optimizeValidation = validateOptimization(step.options);
                 optimizeValidation.errors.forEach(error => {
                     error.step = index + 1;
@@ -1005,7 +1045,7 @@ export function validateTaskSteps(steps, imageInfo = null) {
                 result.valid = result.valid && optimizeValidation.valid;
                 break;
 
-            case 'rename':
+            case ProcessorTypes.RENAME:
                 const renameValidation = validateRenamePattern(step.options.pattern);
                 renameValidation.errors.forEach(error => {
                     error.step = index + 1;
@@ -1018,7 +1058,7 @@ export function validateTaskSteps(steps, imageInfo = null) {
                 result.valid = result.valid && renameValidation.valid;
                 break;
 
-            case 'favicon':
+            case ProcessorTypes.FAVICON:
                 const faviconValidation = validateFaviconOptions(step.options, imageInfo);
                 faviconValidation.errors.forEach(error => {
                     error.step = index + 1;
@@ -1046,66 +1086,66 @@ export function validateTaskLogic(steps) {
     };
 
     const enabledSteps = steps.filter(step => step.enabled !== false);
-    const hasResize = enabledSteps.some(s => s.processor === 'resize');
-    const hasCrop = enabledSteps.some(s => s.processor === 'crop');
-    const hasOptimize = enabledSteps.some(s => s.processor === 'optimize');
+    const hasResize = enabledSteps.some(s => s.processor === ProcessorTypes.RESIZE);
+    const hasCrop = enabledSteps.some(s => s.processor === ProcessorTypes.CROP);
+    const hasOptimize = enabledSteps.some(s => s.processor === ProcessorTypes.OPTIMIZE);
 
     if (hasCrop && !hasResize) {
         result.warnings.push({
             type: 'crop_without_resize',
             message: 'Crop without resize may result in unexpected output',
-            severity: 'info',
+            severity: SeverityLevels.INFO,
             suggestion: 'Consider adding resize step before crop for better control'
         });
     }
 
-    const optimizeSteps = enabledSteps.filter(s => s.processor === 'optimize');
+    const optimizeSteps = enabledSteps.filter(s => s.processor === ProcessorTypes.OPTIMIZE);
     if (optimizeSteps.length > 1) {
         result.warnings.push({
             type: 'multiple_optimize',
             message: `Multiple optimization steps (${optimizeSteps.length})`,
-            severity: 'warning',
+            severity: SeverityLevels.WARNING,
             suggestion: 'Multiple optimizations may degrade quality unnecessarily'
         });
     }
 
-    const renameIndex = enabledSteps.findIndex(s => s.processor === 'rename');
+    const renameIndex = enabledSteps.findIndex(s => s.processor === ProcessorTypes.RENAME);
     if (renameIndex >= 0 && renameIndex < enabledSteps.length - 2) {
         result.warnings.push({
             type: 'early_rename',
             message: 'Rename step placed before other operations',
-            severity: 'info',
+            severity: SeverityLevels.INFO,
             suggestion: 'Consider moving rename to end to reflect final output'
         });
     }
 
-    const faviconIndex = enabledSteps.findIndex(s => s.processor === 'favicon');
+    const faviconIndex = enabledSteps.findIndex(s => s.processor === ProcessorTypes.FAVICON);
     if (faviconIndex >= 0) {
         const stepsBefore = enabledSteps.slice(0, faviconIndex);
-        const hasResizeBefore = stepsBefore.some(s => s.processor === 'resize');
-        const hasCropBefore = stepsBefore.some(s => s.processor === 'crop');
+        const hasResizeBefore = stepsBefore.some(s => s.processor === ProcessorTypes.RESIZE);
+        const hasCropBefore = stepsBefore.some(s => s.processor === ProcessorTypes.CROP);
 
         if (!hasResizeBefore && !hasCropBefore) {
             result.warnings.push({
                 type: 'favicon_without_preparation',
                 message: 'Favicon generation without prior resize/crop',
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: 'Add resize/crop step before favicon for optimal results'
             });
         }
     }
 
-    const faviconSteps = enabledSteps.filter(s => s.processor === 'favicon');
+    const faviconSteps = enabledSteps.filter(s => s.processor === ProcessorTypes.FAVICON);
     faviconSteps.forEach(faviconStep => {
         const optimizeAfter = enabledSteps
-            .filter(s => s.processor === 'optimize')
+            .filter(s => s.processor === ProcessorTypes.OPTIMIZE)
             .some(optimizeStep => optimizeStep.order > faviconStep.order);
 
         if (optimizeAfter) {
             result.warnings.push({
                 type: 'optimize_after_favicon',
                 message: 'Optimization after favicon generation may affect favicon quality',
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: 'Move optimization step before favicon generation'
             });
         }
@@ -1115,7 +1155,7 @@ export function validateTaskLogic(steps) {
         result.warnings.push({
             type: 'optimization_only',
             message: 'Task contains only optimization step',
-            severity: 'info',
+            severity: SeverityLevels.INFO,
             suggestion: 'Consider adding resize/crop steps for complete image processing'
         });
     }
@@ -1141,7 +1181,7 @@ export async function validateTask(task, lemGendImage) {
         result.warnings.push({
             type: 'empty_task',
             message: 'Task has no enabled processing steps',
-            severity: 'warning'
+            severity: SeverityLevels.WARNING
         });
     }
 
@@ -1150,14 +1190,14 @@ export async function validateTask(task, lemGendImage) {
             result.warnings.push({
                 type: 'missing_file_property',
                 message: 'Image missing file property (may be from session storage)',
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: 'File will be reconstructed for processing'
             });
         } else if (!(lemGendImage.file instanceof File)) {
             result.warnings.push({
                 type: 'invalid_file_type',
                 message: 'Image file property is not a File instance',
-                severity: 'warning',
+                severity: SeverityLevels.WARNING,
                 suggestion: 'File will be reconstructed for processing'
             });
         }

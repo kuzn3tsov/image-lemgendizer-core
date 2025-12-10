@@ -1,7 +1,11 @@
 /**
  * Shared utilities used by multiple modules
  * @module utils/sharedUtils
+ * @version 3.0.0
  */
+
+// Import shared constants
+import { OptimizationFormats } from '../constants/sharedConstants.js';
 
 /**
  * Check if dimension is variable
@@ -11,7 +15,7 @@ export function isVariableDimension(dimension) {
         return dimension.includes('{') || dimension.includes('*') ||
             dimension.toLowerCase().includes('variable') ||
             dimension.toLowerCase().includes('flexible') ||
-            dimension === 'auto' || dimension === 'any'
+            dimension === OptimizationFormats.AUTO || dimension === 'any'
     }
     return false
 }
